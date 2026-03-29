@@ -35,7 +35,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- ៣. ប្រព័ន្ធគ្រប់គ្រង API Key (ការពារ Error លើកុំព្យូទ័រ) ---
+# --- ៣. ប្រព័ន្ធគ្រប់គ្រង API Key (ការពារ Error លើកុំព្យូទ័រ និង Cloud) ---
 api_key = None
 
 try:
@@ -43,13 +43,14 @@ try:
     if "GEMINI_API_KEY" in st.secrets:
         api_key = st.secrets["GEMINI_API_KEY"]
 except:
-    # បើរកមិនឃើញ (សម្រាប់ Local) វានឹងមិនបាញ់ Error ទេ តែទុកឱ្យអ្នកបញ្ចូលក្នុង Sidebar
+    # បើរកមិនឃើញ (សម្រាប់ Local) វានឹងមិនបាញ់ Error ទេ
     pass
 
 if not api_key:
+    # បើគ្មាន Secret ទេ វានឹងឱ្យវាយបញ្ចូលក្នុង Sidebar
     api_key = st.sidebar.text_input("🔑 បញ្ចូល Gemini API Key:", type="password", help="យក Key ពី Google AI Studio")
     if not api_key:
-        st.sidebar.info("💡 នៅលើកុំព្យូទ័រផ្ទាល់ខ្លួន សូមបញ្ចូល Key ក្នុង Sidebar ដើម្បីឱ្យ AI ដើរ។")
+        st.sidebar.info("💡 សូមបញ្ចូល API Key ក្នុង Sidebar ដើម្បីឱ្យ AI ដំណើរការ។")
 
 # --- ៤. ចំណងជើង និងព័ត៌មានអាជីវកម្ម ---
 st.title("🛡️ NextGen Byte-Tech: AI Intelligence Hub")
@@ -73,16 +74,16 @@ def get_trends(keywords, tf):
     except:
         return pd.DataFrame()
 
-# --- ៧. មុខងារ AI Content Generator (Gemini) ---
+# --- ៧. មុខងារ AI Content Generator (Gemini 1.5 Flash) ---
 def ai_generate_content(key, keyword, style):
-    # កំណត់ Configuration ជាមួយ API Key
+    # កំណត់ Configuration ជាមួយ API Key ដែលបានបញ្ចូល
     genai.configure(api_key=key)
     
-    # ប្រើ Model ឈ្មោះ 'gemini-1.5-flash' (វាខ្លាំង និង Update ចុងក្រោយ)
+    # ប្រើ Model ឈ្មោះ 'gemini-1.5-flash' ដើម្បីការពារ Error 404
     model = genai.GenerativeModel('gemini-1.5-flash')
     
-    style_desc = "បែបកំប្លែង TikTok" if style == "Funny" else "បែបអាជីព បច្ចេកទេស"
-    prompt = f"អ្នកគឺជាអ្នកជំនាញ Marketing សម្រាប់ NextGen Byte-Tech។ សរសេរ Script វីដេអូ TikTok លើប្រធានបទ: {keyword}។ ស្ទីល: {style_desc}។ ភាសាខ្មែរ។"
+    style_desc = "បែបកំប្លែង TikTok (Funny/Viral)" if style == "Funny" else "បែបបច្ចេកទេសសុទ្ធ (Professional/Tech)"
+    prompt = f"អ្នកគឺជាអ្នកជំនាញ Marketing សម្រាប់ NextGen Byte-Tech។ សរសេរ Script វីដេអូខ្លីលើប្រធានបទ: {keyword}។ ស្ទីល: {style_desc}។ ភាសាខ្មែរ។"
     
     try:
         response = model.generate_content(prompt)
@@ -95,30 +96,35 @@ st.subheader("📈 និន្នាការទីផ្សារ IT នៅក
 df_trends = get_trends(selected_keywords, timeframe)
 
 if not df_trends.empty:
-    cols = st.columns(len(selected_keywords))
-    for i, kw in enumerate(selected_keywords):
-        latest = int(df_trends[kw].iloc[-1])
-        cols[i].metric(label=kw, value=latest)
+    num_cols = len(selected_keywords)
+    if num_cols > 0:
+        cols = st.columns(num_cols)
+        for i, kw in enumerate(selected_keywords):
+            if kw in df_trends.columns:
+                latest = int(df_trends[kw].iloc[-1])
+                cols[i].metric(label=kw, value=latest)
+    
     fig = px.line(df_trends.reset_index(), x='date', y=selected_keywords, template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("🔄 កំពុងរង់ចាំទិន្នន័យពី Google Trends...")
 
 st.divider()
 
 st.subheader("🤖 AI Script Generator")
 col_left, col_right = st.columns([1, 2])
+
 with col_left:
-    target_kw = st.selectbox("ជ្រើសរើស Keyword:", selected_keywords)
-    content_style = st.radio("ជ្រើសរើសស្ទីល:", ["Funny", "Professional"])
+    target_kw = st.selectbox("ជ្រើសរើស Keyword គោលដៅ:", selected_keywords)
+    content_style = st.radio("ជ្រើសរើសស្ទីលអត្ថបទ:", ["Funny", "Professional"])
     generate_btn = st.button("🚀 បង្កើត Script ឥឡូវនេះ")
 
 with col_right:
     if generate_btn:
         if not api_key:
-            st.error("❌ សូមបញ្ចូល API Key ក្នុង Sidebar!")
+            st.error("❌ សូមបញ្ចូល API Key ជាមុនសិន!")
         else:
-            with st.spinner('✨ AI កំពុងរៀបចំ...'):
-                try:
-                    script_out = ai_generate_content(api_key, target_kw, content_style)
-                    st.text_area("លទ្ធផល៖", script_out, height=350)
-                except Exception as e:
-                    st.error(f"Error: {e}")
+            with st.spinner('✨ AI កំពុងរៀបចំសំណេរ...'):
+                script_out = ai_generate_content(api_key, target_kw, content_style)
+                st.subheader("📝 លទ្ធផល៖")
+                st.code(script_out, language="markdown")
