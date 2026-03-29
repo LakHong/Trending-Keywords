@@ -12,7 +12,7 @@ st.set_page_config(
     page_icon="🛡️"
 )
 
-# --- ២. ការកំណត់ Theme ហុងស៊ុយ (មាស និង ក្រហម) ---
+# --- ២. ការកំណត់ Theme (មាស និង ក្រហម) ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; }
@@ -35,167 +35,122 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- ៣. ប្រព័ន្ធគ្រប់គ្រង API Key ---
-api_key = None
-try:
-    if "GEMINI_API_KEY" in st.secrets:
-        api_key = st.secrets["GEMINI_API_KEY"]
-except:
-    pass
-
+api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
     api_key = st.sidebar.text_input("🔑 បញ្ចូល Gemini API Key:", type="password")
-    if not api_key:
-        st.sidebar.info("💡 សូមបញ្ចូល API Key ដើម្បីដំណើរការ AI។")
 
-# --- ៤. ចំណងជើង ---
-st.title("🛡️ NextGen Byte-Tech: AI Intelligence Hub")
-st.write(f"**យុទ្ធសាស្ត្រមមី ធាតុភ្លើង ២០២៦** | 📅 {datetime.now().strftime('%d-%m-%Y')}")
-
-# --- ៥. Sidebar ---
+# --- ៤. Sidebar & ការកំណត់ Trend ---
+st.sidebar.title("🛡️ NextGen Config")
 st.sidebar.divider()
-st.sidebar.subheader("📊 ការកំណត់ Trend")
+
 default_kw = ["CCTV Cambodia", "UniFi Networking", "Hikvision AI", "IT Solution", "Smart Home"]
 selected_keywords = st.sidebar.multiselect("ជ្រើសរើស Keywords:", default_kw, default_kw)
-timeframe = st.sidebar.selectbox("រយៈពេលវិភាគ:", ["៧ ថ្ងៃចុងក្រោយ (Hot Trend)", "១ ខែចុងក្រោយ (Monthly)", "៣ ខែចុងក្រោយ (Quarterly)"])
 
-# --- ៦. មុខងារ Google Trends ---
+# ប្តូរឈ្មោះ Timeframe ឱ្យងាយស្រួលមើល
+time_map = {
+    "៧ ថ្ងៃចុងក្រោយ (Hot Trend)": "now 7-d",
+    "១ ខែចុងក្រោយ (Monthly)": "today 1-m",
+    "៣ ខែចុងក្រោយ (Quarterly)": "today 3-m"
+}
+time_label = st.sidebar.selectbox("រយៈពេលវិភាគ:", list(time_map.keys()))
+time_value = time_map[time_label]
+
+# --- ៥. មុខងារជំនួយ (Functions) ---
 @st.cache_data(ttl=3600)
 def get_trends(keywords, tf):
     try:
         pytrends = TrendReq(hl='en-US', tz=360)
-        pytrends.build_payload(keywords, cat=0, timeframe=tf, geo='KH', gprop='')
-        df = pytrends.interest_over_time()
-        return df
+        pytrends.build_payload(keywords, cat=0, timeframe=tf, geo='KH')
+        return pytrends.interest_over_time()
     except:
         return pd.DataFrame()
 
-# --- ៧. មុខងារ AI Content Generator (បង្ខំប្រើ Version ខ្ពស់បំផុត) ---
-def ai_generate_content(key, keyword, style):
-    genai.configure(api_key=key)
-    
-    # ប្រើ Model ជំនាន់ថ្មីដែលលោកអ្នកបានរកឃើញក្នុង AI Studio
-    model = genai.GenerativeModel('gemini-3-flash-preview')
-    
-    style_desc = "បែបកំប្លែង TikTok" if style == "Funny" else "បែបអាជីព បច្ចេកទេស"
-    
-    # បន្ថែម Context ឱ្យ AI ស្គាល់ថាអ្នកគឺជាម្ចាស់ហាង IT ដើម្បីឱ្យសំណេរកាន់តែទាក់ទាញ
-    prompt = f"""
-    អ្នកគឺជាអ្នកជំនាញ Marketing ឌីជីថលសម្រាប់ហាង NextGen Byte-Tech នៅកម្ពុជា។
-    សូមសរសេរ Script វីដេអូខ្លីសម្រាប់ TikTok/Facebook Reels លើប្រធានបទ: {keyword}។
-    ស្ទីលសំណេរ: {style_desc}។
-    ភាសា: ខ្មែរ (ប្រើពាក្យពេចន៍យុវវ័យ និងបច្ចេកទេសឱ្យសមស្រប)។
-    គោលដៅ: ទាក់ទាញអតិថិជនឱ្យមកប្រើសេវាកម្មដំឡើង និងប្រឹក្សាយោបល់ IT។
-    """
-    
+def ai_call(prompt):
+    if not api_key:
+        return "❌ សូមបញ្ចូល API Key ជាមុនសិន!"
     try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-3-flash-preview')
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"បញ្ហាបច្ចេកទេស AI: {str(e)}"
+        return f"⚠️ បញ្ហា AI: {str(e)}"
 
-# ---៨. កូដផ្នែក Trend Comparison ថ្មី ---
+# --- ៦. ចំណងជើងលើអេក្រង់ ---
+st.title("🛡️ NextGen Byte-Tech: AI Intelligence Hub")
+st.write(f"**យុទ្ធសាស្ត្រមមី ធាតុភ្លើង ២០២៦** | 📅 {datetime.now().strftime('%d-%m-%Y')}")
+
+# --- ៧. បង្ហាញក្រាហ្វនិន្នាការទូទៅ ---
+st.subheader(f"📈 និន្នាការទីផ្សារ: {time_label}")
+df_trends = get_trends(selected_keywords, time_value)
+
+if not df_trends.empty:
+    cols = st.columns(len(selected_keywords))
+    for i, kw in enumerate(selected_keywords):
+        if kw in df_trends.columns:
+            latest_val = int(df_trends[kw].iloc[-1])
+            cols[i].metric(label=kw, value=latest_val)
+    
+    fig = px.line(df_trends.reset_index(), x='date', y=selected_keywords, template="plotly_dark")
+    st.plotly_chart(fig, width='stretch')
+else:
+    st.warning("⚠️ មិនអាចទាញយកទិន្នន័យ Google Trends បានទេ។ សូមសាកល្បងម្ដងទៀតបន្តិចទៀតនេះ។")
+
+# --- ៨. ការប្រៀបធៀប Brand (Market Share) ---
 st.divider()
 st.subheader("⚔️ ការប្រៀបធៀបកេរ្តិ៍ឈ្មោះ Brand (Market Share)")
 
-# បង្កើតបញ្ជី Brand សម្រាប់ប្រៀបធៀប
 brand_comparison = st.multiselect(
     "ជ្រើសរើស Brand ដើម្បីប្រៀបធៀប:", 
     ["Hikvision", "Dahua", "Sunell", "Ubiquiti", "Cisco", "TP-Link"],
     default=["Hikvision", "Dahua", "Sunell"]
 )
 
+# កំណត់ df_compare ជាតម្លៃទទេជាមុន ដើម្បីការពារ Error ពេលទាញទិន្នន័យមិនបាន
+df_compare = pd.DataFrame()
+
 if brand_comparison:
     try:
-        pytrends = TrendReq(hl='en-US', tz=360)
-        pytrends.build_payload(brand_comparison, cat=0, timeframe='today 3-m', geo='KH')
-        df_compare = pytrends.interest_over_time()
+        py_comp = TrendReq(hl='en-US', tz=360)
+        py_comp.build_payload(brand_comparison, cat=0, timeframe=time_value, geo='KH')
+        df_compare = py_comp.interest_over_time()
         
         if not df_compare.empty:
-            # បង្ហាញជាក្រាហ្វមធ្យមភាគ (Pie Chart) ដើម្បីមើលចំណែកទីផ្សារ
             avg_trends = df_compare[brand_comparison].mean().reset_index()
             avg_trends.columns = ['Brand', 'Search Volume']
             
-            col_chart, col_data = st.columns([2, 1])
-            
-            with col_chart:
+            c1, c2 = st.columns([2, 1])
+            with c1:
                 fig_pie = px.pie(avg_trends, values='Search Volume', names='Brand', 
-                                title="ចំណែកនៃការស្វែងរកក្នុងរយៈពេល ៣ ខែចុងក្រោយ (កម្ពុជា)",
-                                hole=0.4, template="plotly_dark",
-                                color_discrete_sequence=px.colors.sequential.YlOrRd)
+                                title="ចំណែកនៃការស្វែងរកក្នុងទីផ្សារ", hole=0.4, 
+                                template="plotly_dark")
                 st.plotly_chart(fig_pie, width='stretch')
-            
-            with col_data:
-                st.write("**📊 ការវិភាគបច្ចេកទេស៖**")
-                top_brand = avg_trends.loc[avg_trends['Search Volume'].idxmax(), 'Brand']
-                st.success(f"🏆 **{top_brand}** ជា Brand ដែលមានគេចាប់អារម្មណ៍ខ្លាំងជាងគេ!")
-                st.write("បងគួរតែពង្រឹង Content លើ Brand នេះឱ្យបានច្រើន។")
-    except:
-        st.warning("⚠️ មិនអាចទាញយកទិន្នន័យប្រៀបធៀបបានទេក្នុងពេលនេះ។")
-
-# ---៩. មុខងារ AI វិភាគទិន្នន័យទីផ្សារ ---
-st.divider()
-st.header("📋 របាយការណ៍យុទ្ធសាស្ត្រពី AI (Market Insight)")
-
-if not df_compare.empty:
-    if st.button("📊 ចាប់ផ្ដើមវិភាគទិន្នន័យខែនេះ"):
-        with st.spinner('AI កំពុងពិនិត្យមើលនិន្នាការទីផ្សារ...'):
-            # រៀបចំទិន្នន័យសង្ខេបផ្ញើទៅ AI
-            avg_stats = df_compare[brand_comparison].mean().to_dict()
-            
-            # បង្កើត Prompt ឱ្យ AI ជួយវិភាគ
-            report_prompt = f"""
-            ក្នុងនាមជាអ្នកជំនាញវិភាគទីផ្សារ IT នៅកម្ពុជា សូមពិនិត្យមើលទិន្នន័យស្វែងរក (Search Volume) នៃ Brand ទាំងនេះ៖
-            {avg_stats}
-            
-            សូមសរសេររបាយការណ៍សង្ខេបជាភាសាខ្មែរសម្រាប់ក្រុមហ៊ុន NextGen Byte-Tech៖
-            1. តើ Brand ណាដែលមានសក្តានុពលខ្លាំងជាងគេក្នុងខែនេះ?
-            2. តើគួរធ្វើ Content បែបណាដើម្បីទាក់ទាញអតិថិជនឱ្យទិញម៉ាកនោះ?
-            3. ផ្ដល់យោបល់យុទ្ធសាស្ត្រ ១ ដែលបង (ម្ចាស់ហាង) គួរអនុវត្តភ្លាមៗ។
-            """
-            
-            try:
-                # ប្រើ Model Gemini 3 Flash ដែលយើងរកឃើញថាដើរ
-                model = genai.GenerativeModel('gemini-3-flash-preview')
-                report_out = model.generate_content(report_prompt)
+            with c2:
+                top_b = avg_trends.loc[avg_trends['Search Volume'].idxmax(), 'Brand']
+                st.success(f"🏆 **{top_b}** ឈានមុខគេ!")
                 
-                # បង្ហាញរបាយការណ៍ក្នុងប្រអប់ស្អាតមួយ
-                st.info("💡 **លទ្ធផលនៃការវិភាគយុទ្ធសាស្ត្រ៖**")
-                st.markdown(report_out.text)
-            except Exception as e:
-                st.error(f"មិនអាចបង្កើតរបាយការណ៍បានទេ: {str(e)}")
+                # ប៊ូតុងវិភាគរបាយការណ៍
+                if st.button("📋 វិភាគយុទ្ធសាស្ត្រដោយ AI"):
+                    stats_dict = avg_trends.to_dict()
+                    p = f"វិភាគទិន្នន័យ Brand IT ខ្មែរ: {stats_dict}។ សរសេរយុទ្ធសាស្ត្រលក់ឱ្យ NextGen Byte-Tech ជាខេមរភាសា។"
+                    st.info(ai_call(p))
+    except:
+        st.error("⚠️ Google Trends កំពុងជាប់រវល់ (Rate Limit)។ សូមរង់ចាំ ១ នាទី។")
 
-# --- ១០. បង្ហាញលទ្ធផល (កែសម្រួលតាម Log Warning) ---
-st.subheader("📈 និន្នាការទីផ្សារ IT នៅកម្ពុជា")
-df_trends = get_trends(selected_keywords, timeframe)
-
-if not df_trends.empty:
-    num_cols = len(selected_keywords)
-    if num_cols > 0:
-        cols = st.columns(num_cols)
-        for i, kw in enumerate(selected_keywords):
-            if kw in df_trends.columns:
-                latest = int(df_trends[kw].iloc[-1])
-                cols[i].metric(label=kw, value=latest)
-    
-    fig = px.line(df_trends.reset_index(), x='date', y=selected_keywords, template="plotly_dark")
-    # កែពី use_container_width=True មកជា width='stretch' តាម Log
-    st.plotly_chart(fig, width='stretch')
-
+# --- ៩. AI Script Generator (Soft Sell Strategy) ---
 st.divider()
+st.subheader("🤖 NextGen AI Script Generator")
+col_l, col_r = st.columns([1, 2])
 
-st.subheader("🤖 AI Script Generator")
-col_left, col_right = st.columns([1, 2])
+with col_l:
+    target = st.selectbox("រើស Keyword:", selected_keywords)
+    style = st.radio("ស្ទីល:", ["Funny (កំប្លែង TikTok)", "Professional (អាជីព)"])
+    if st.button("🚀 បង្កើត Script ឥឡូវនេះ"):
+        with st.spinner('✨ កំពុងរៀបចំ...'):
+            prompt_style = "បែប Storytelling Soft-sell" if "Funny" in style else "បែបបច្ចេកទេសទុកចិត្តបាន"
+            full_prompt = f"សរសេរ Script TikTok សម្រាប់ហាង NextGen Byte-Tech លើប្រធានបទ {target} ស្ទីល {prompt_style} ជាភាសាខ្មែរ។"
+            st.session_state['ai_script'] = ai_call(full_prompt)
 
-with col_left:
-    target_kw = st.selectbox("ជ្រើសរើស Keyword:", selected_keywords)
-    content_style = st.radio("ជ្រើសរើសស្ទីល:", ["Funny", "Professional"])
-    generate_btn = st.button("🚀 បង្កើត Script ឥឡូវនេះ")
-
-with col_right:
-    if generate_btn:
-        if not api_key:
-            st.error("❌ សូមបញ្ចូល API Key!")
-        else:
-            with st.spinner('✨ AI កំពុងរៀបចំ...'):
-                script_out = ai_generate_content(api_key, target_kw, content_style)
-                st.code(script_out, language="markdown")
+with col_r:
+    if 'ai_script' in st.session_state:
+        st.code(st.session_state['ai_script'], language="markdown")
