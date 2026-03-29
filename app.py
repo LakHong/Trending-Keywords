@@ -132,7 +132,39 @@ if brand_comparison:
     except:
         st.warning("⚠️ មិនអាចទាញយកទិន្នន័យប្រៀបធៀបបានទេក្នុងពេលនេះ។")
 
-# --- ៩. បង្ហាញលទ្ធផល (កែសម្រួលតាម Log Warning) ---
+# ---៩. មុខងារ AI វិភាគទិន្នន័យទីផ្សារ ---
+st.divider()
+st.header("📋 របាយការណ៍យុទ្ធសាស្ត្រពី AI (Market Insight)")
+
+if not df_compare.empty:
+    if st.button("📊 ចាប់ផ្ដើមវិភាគទិន្នន័យខែនេះ"):
+        with st.spinner('AI កំពុងពិនិត្យមើលនិន្នាការទីផ្សារ...'):
+            # រៀបចំទិន្នន័យសង្ខេបផ្ញើទៅ AI
+            avg_stats = df_compare[brand_comparison].mean().to_dict()
+            
+            # បង្កើត Prompt ឱ្យ AI ជួយវិភាគ
+            report_prompt = f"""
+            ក្នុងនាមជាអ្នកជំនាញវិភាគទីផ្សារ IT នៅកម្ពុជា សូមពិនិត្យមើលទិន្នន័យស្វែងរក (Search Volume) នៃ Brand ទាំងនេះ៖
+            {avg_stats}
+            
+            សូមសរសេររបាយការណ៍សង្ខេបជាភាសាខ្មែរសម្រាប់ក្រុមហ៊ុន NextGen Byte-Tech៖
+            1. តើ Brand ណាដែលមានសក្តានុពលខ្លាំងជាងគេក្នុងខែនេះ?
+            2. តើគួរធ្វើ Content បែបណាដើម្បីទាក់ទាញអតិថិជនឱ្យទិញម៉ាកនោះ?
+            3. ផ្ដល់យោបល់យុទ្ធសាស្ត្រ ១ ដែលបង (ម្ចាស់ហាង) គួរអនុវត្តភ្លាមៗ។
+            """
+            
+            try:
+                # ប្រើ Model Gemini 3 Flash ដែលយើងរកឃើញថាដើរ
+                model = genai.GenerativeModel('gemini-3-flash-preview')
+                report_out = model.generate_content(report_prompt)
+                
+                # បង្ហាញរបាយការណ៍ក្នុងប្រអប់ស្អាតមួយ
+                st.info("💡 **លទ្ធផលនៃការវិភាគយុទ្ធសាស្ត្រ៖**")
+                st.markdown(report_out.text)
+            except Exception as e:
+                st.error(f"មិនអាចបង្កើតរបាយការណ៍បានទេ: {str(e)}")
+
+# --- ១០. បង្ហាញលទ្ធផល (កែសម្រួលតាម Log Warning) ---
 st.subheader("📈 និន្នាការទីផ្សារ IT នៅកម្ពុជា")
 df_trends = get_trends(selected_keywords, timeframe)
 
