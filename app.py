@@ -43,7 +43,7 @@ if not api_key:
 st.sidebar.title("🛡️ NextGen Config")
 st.sidebar.divider()
 
-default_kw = ["CCTV Cambodia", "UniFi Networking", "Hikvision AI", "IT Solution", "Smart Home", "Wifi Camera Cambodia"]
+default_kw = ["CCTV Cambodia", "UniFi Networking", "Hikvision AI", "IT Solution", "Smart Home"]
 selected_keywords = st.sidebar.multiselect("ជ្រើសរើស Keywords:", default_kw, default_kw)
 
 # ប្តូរឈ្មោះ Timeframe ឱ្យងាយស្រួលមើល
