@@ -102,7 +102,7 @@ st.subheader("⚔️ ការប្រៀបធៀបកេរ្តិ៍ឈ�
 
 brand_comparison = st.multiselect(
     "ជ្រើសរើស Brand ដើម្បីប្រៀបធៀប:", 
-    ["Hikvision", "Dahua", "Sunell", "Ubiquiti", "Cisco", "TP-Link"],
+    ["Hikvision", "Dahua", "Sunell", "Ubiquiti", "Cisco", "TP-Link", "Ruijie", "Ezviz", "Imou"],
     default=["Hikvision", "Dahua", "Sunell"]
 )
 
