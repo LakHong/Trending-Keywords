@@ -5,6 +5,7 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 import time
+import random
 
 # --- ១. ការកំណត់ទំព័រ និង Branding ---
 st.set_page_config(
@@ -13,7 +14,7 @@ st.set_page_config(
     page_icon="🛡️"
 )
 
-# --- ២. ការកំណត់ Theme ហុងស៊ុយ (មាស និង ក្រហម) ---
+# --- ២. ការកំណត់ Theme ហុងស៊ុយ ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; }
@@ -25,11 +26,6 @@ st.markdown("""
         border-radius: 12px;
         border: 2px solid #FF4B4B !important;
         font-weight: bold;
-        width: 100%;
-    }
-    div.stButton > button:hover {
-        background-color: #FF4B4B !important;
-        color: #FFFFFF !important;
     }
     .stTextArea textarea { border: 1px solid #FFD700 !important; background-color: #1e2130 !important; }
     </style>
@@ -38,12 +34,10 @@ st.markdown("""
 # --- ៣. ប្រព័ន្ធគ្រប់គ្រង API Key ---
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
-    api_key = st.sidebar.text_input("🔑 បញ្ចូល Gemini API Key:", type="password")
+    api_key = st.sidebar.text_input("🔑 Gemini API Key:", type="password")
 
-# --- ៤. Sidebar & ការកំណត់ Trend ---
+# --- ៤. Sidebar Config ---
 st.sidebar.title("🛡️ NextGen Config")
-st.sidebar.divider()
-
 default_kw = ["CCTV", "Wifi Camera", "Hikvision", "Dahua", "Sunell", "Smart Home", "Ezviz"]
 selected_keywords = st.sidebar.multiselect("ជ្រើសរើស Keywords:", default_kw, default_kw)
 
@@ -55,19 +49,29 @@ time_map = {
 time_label = st.sidebar.selectbox("រយៈពេលវិភាគ:", list(time_map.keys()))
 time_value = time_map[time_label]
 
-# --- ៥. មុខងារជំនួយ (Functions) ជាមួយប្រព័ន្ធការពារ ---
-@st.cache_data(ttl=3600)
-def get_trends(keywords, tf):
+# --- ៥. មុខងារទាញទិន្នន័យដែលមានប្រព័ន្ធការពារការ Block ---
+@st.cache_data(ttl=1800) # កាត់បន្ថយ TTL មកត្រឹម ៣០ នាទីដើម្បីឱ្យទិន្នន័យថ្មីជានិច្ច
+def get_trends_safe(keywords, tf):
     if not keywords: return pd.DataFrame()
-    try:
-        py_req = TrendReq(hl='en-US', tz=360, timeout=(10,25))
-        py_req.build_payload(keywords, cat=0, timeframe=tf, geo='KH')
-        data = py_req.interest_over_time()
-        if not data.empty:
-            return data.drop(labels=['isPartial'], axis='columns', errors='ignore')
-        return pd.DataFrame()
-    except Exception as e:
-        return pd.DataFrame()
+    
+    # ព្យាយាមទាញ ៥ ដង បើមិនបានសម្រេច (Retry Logic)
+    for attempt in range(5):
+        try:
+            # បន្ថែម backoff_factor និងតម្រូវឱ្យរង់ចាំចន្លោះពី ១ ទៅ ៥ វិនាទី រាល់ពេលសាកថ្មី
+            wait_time = (2 ** attempt) + random.random() 
+            py_req = TrendReq(hl='en-US', tz=360, timeout=(15, 30), backoff_factor=0.2)
+            py_req.build_payload(keywords, cat=0, timeframe=tf, geo='KH')
+            data = py_req.interest_over_time()
+            
+            if not data.empty:
+                return data.drop(labels=['isPartial'], axis='columns', errors='ignore')
+            
+            time.sleep(wait_time) 
+        except Exception:
+            time.sleep(wait_time + 2)
+            continue
+            
+    return pd.DataFrame()
 
 def ai_call(prompt):
     if not api_key: return "❌ សូមបញ្ចូល API Key!"
@@ -78,13 +82,13 @@ def ai_call(prompt):
     except Exception as e:
         return f"⚠️ AI Error: {str(e)}"
 
-# --- ៦. ចំណងជើងលើអេក្រង់ ---
+# --- ៦. Main UI ---
 st.title("🛡️ NextGen Byte-Tech: AI Intelligence Hub")
-st.write(f"**យុទ្ធសាស្ត្រមមី ធាតុភ្លើង ២០២៦** | 📅 {datetime.now().strftime('%d-%m-%Y')}")
+st.write(f"📅 {datetime.now().strftime('%d-%m-%Y')}")
 
-# --- ៧. បង្ហាញក្រាហ្វនិន្នាការទូទៅ ---
+# បង្ហាញក្រាហ្វនិន្នាការ
 st.subheader(f"📈 និន្នាការទីផ្សារ: {time_label}")
-df_trends = get_trends(selected_keywords, time_value)
+df_trends = get_trends_safe(selected_keywords, time_value)
 
 if not df_trends.empty:
     cols = st.columns(len(selected_keywords))
@@ -96,64 +100,40 @@ if not df_trends.empty:
     fig = px.line(df_trends.reset_index(), x='date', y=[k for k in selected_keywords if k in df_trends.columns], template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
 else:
-    st.warning("⚠️ Google Trends កំពុងមមាញឹក ឬមិនមានទិន្នន័យ។ សូមរង់ចាំ ១ នាទី រួច Refresh ទំព័រឡើងវិញ។")
+    # បង្ហាញសារណែនាំដែលងាយយល់
+    st.error("🚫 Google កំពុងរឹតត្បិតការចូលប្រើបណ្តោះអាសន្ន។")
+    st.info("💡 ដំណោះស្រាយ៖ សូមរង់ចាំ ២ នាទី រួចចុចប៊ូតុង Refresh ក្នុង Browser ឬសាកល្បងប្តូរ 'រយៈពេលវិភាគ' ផ្សេងវិញ។")
 
-# --- ៨. ការប្រៀបធៀប Brand (Market Share) ជាមួយមុខងារការពារ ---
+# --- ៧. ប្រៀបធៀប Brand & AI Insight ---
 st.divider()
-st.subheader("⚔️ ការប្រៀបធៀបកេរ្តិ៍ឈ្មោះ Brand (Market Share)")
+st.subheader("⚔️ Market Share Comparison")
+brand_comparison = st.multiselect("ជ្រើសរើស Brand:", ["Hikvision", "Dahua", "Sunell", "Ezviz", "Imou"], default=["Hikvision", "Dahua", "Sunell"])
 
-brand_comparison = st.multiselect(
-    "ជ្រើសរើស Brand ដើម្បីប្រៀបធៀប:", 
-    ["Hikvision", "Dahua", "Sunell", "Ezviz", "Imou", "Ubiquiti"],
-    default=["Hikvision", "Dahua", "Sunell"]
-)
+df_compare = get_trends_safe(brand_comparison, time_value)
 
-# បង្កើត df_compare ជាតម្លៃទទេជាមុន (ការពារ NameError ជួរទី ១៣៩)
-df_compare = pd.DataFrame() 
+if not df_compare.empty:
+    avg_trends = df_compare[brand_comparison].mean().reset_index()
+    avg_trends.columns = ['Brand', 'Search Volume']
+    
+    c1, c2 = st.columns([2, 1])
+    with c1:
+        fig_pie = px.pie(avg_trends, values='Search Volume', names='Brand', hole=0.4, template="plotly_dark")
+        st.plotly_chart(fig_pie, use_container_width=True)
+    with c2:
+        top_b = avg_trends.loc[avg_trends['Search Volume'].idxmax(), 'Brand']
+        st.success(f"🏆 **{top_b}** ឈានមុខគេ!")
+        if st.button("📋 វិភាគយុទ្ធសាស្ត្រ"):
+            st.info(ai_call(f"វិភាគ Brand IT ខ្មែរ: {avg_trends.to_dict()}។ ផ្ដល់យោបល់លក់ឱ្យ NextGen Byte-Tech។"))
+else:
+    st.warning("⚠️ មិនទាន់អាចទាញទិន្នន័យប្រៀបធៀបបានទេ។")
 
-if brand_comparison:
-    try:
-        py_comp = TrendReq(hl='en-US', tz=360, timeout=(10,25))
-        py_comp.build_payload(brand_comparison, cat=0, timeframe=time_value, geo='KH')
-        df_compare = py_comp.interest_over_time()
-        
-        if not df_compare.empty:
-            # លុប Column isPartial ចេញមុននឹងវិភាគ
-            df_plot = df_compare.drop(labels=['isPartial'], axis='columns', errors='ignore')
-            avg_trends = df_plot[brand_comparison].mean().reset_index()
-            avg_trends.columns = ['Brand', 'Search Volume']
-            
-            c1, c2 = st.columns([2, 1])
-            with c1:
-                fig_pie = px.pie(avg_trends, values='Search Volume', names='Brand', 
-                                title="ចំណែកនៃការស្វែងរកក្នុងទីផ្សារ", hole=0.4, 
-                                template="plotly_dark")
-                st.plotly_chart(fig_pie, use_container_width=True)
-            with c2:
-                top_b = avg_trends.loc[avg_trends['Search Volume'].idxmax(), 'Brand']
-                st.success(f"🏆 **{top_b}** ឈានមុខគេ!")
-                
-                if st.button("📋 វិភាគយុទ្ធសាស្ត្រដោយ AI"):
-                    p = f"វិភាគទិន្នន័យ Brand IT ខ្មែរ: {avg_trends.to_dict()}។ សរសេរយុទ្ធសាស្ត្រលក់ឱ្យ NextGen Byte-Tech ជាខេមរភាសា។"
-                    st.info(ai_call(p))
-        else:
-            st.info("💡 មិនទាន់មានទិន្នន័យប្រៀបធៀបសម្រាប់ Brand ទាំងនេះទេ។")
-    except Exception:
-        st.error("⚠️ មិនអាចទាញយកទិន្នន័យប្រៀបធៀបបានទេក្នុងពេលនេះ (Google Rate Limit)។")
-
-# --- ៩. AI Script Generator ---
+# --- ៨. AI Script Generator ---
 st.divider()
-st.subheader("🤖 NextGen AI Script Generator")
-col_l, col_r = st.columns([1, 2])
+st.subheader("🤖 AI Script Generator")
+target = st.selectbox("រើស Keyword:", selected_keywords if selected_keywords else ["CCTV"])
+if st.button("🚀 បង្កើត Script"):
+    with st.spinner('✨ កំពុងរៀបចំ...'):
+        st.session_state['ai_script'] = ai_call(f"សរសេរ Script TikTok សម្រាប់ NextGen Byte-Tech លើប្រធានបទ {target} ជាភាសាខ្មែរ។")
 
-with col_l:
-    target = st.selectbox("រើស Keyword សម្រាប់ Content:", selected_keywords if selected_keywords else ["CCTV"])
-    style = st.radio("ស្ទីលសំណេរ:", ["កំប្លែង TikTok (Funny)", "អាជីពទុកចិត្តបាន (Professional)"])
-    if st.button("🚀 បង្កើត Script ឥឡូវនេះ"):
-        with st.spinner('✨ កំពុងរៀបចំ...'):
-            full_prompt = f"សរសេរ Script TikTok បែប Soft-sell សម្រាប់ហាង NextGen Byte-Tech លើប្រធានបទ {target} ស្ទីល {style} ជាភាសាខ្មែរ។"
-            st.session_state['ai_script'] = ai_call(full_prompt)
-
-with col_r:
-    if 'ai_script' in st.session_state:
-        st.code(st.session_state['ai_script'], language="markdown")
+if 'ai_script' in st.session_state:
+    st.code(st.session_state['ai_script'], language="markdown")
