@@ -1,0 +1,9 @@
+[theme]
+primaryColor = "#FFD700"          # ពណ៌មាស (Gold)
+backgroundColor = "#0E1117"       # ពណ៌ខ្មៅងងឹត (Dark Background)
+secondaryBackgroundColor = "#262730" # ពណ៌ប្រផេះក្រមៅ (Sidebar/Widgets)
+textColor = "#FFFFFF"             # អក្សរពណ៌ស (ងាយស្រួលអាន)
+font = "sans serif"
+
+[client]
+displayEnabled = false
