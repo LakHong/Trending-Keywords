@@ -72,11 +72,20 @@ def get_trends(keywords, tf):
 # --- ៧. មុខងារ AI Content Generator (បង្ខំប្រើ Version ខ្ពស់បំផុត) ---
 def ai_generate_content(key, keyword, style):
     genai.configure(api_key=key)
-    # ប្រើ gemini-1.5-flash-latest ដើម្បីទទួលបានភាពត្រឹមត្រូវខ្ពស់បំផុត
+    
+    # ប្រើ Model ជំនាន់ថ្មីដែលលោកអ្នកបានរកឃើញក្នុង AI Studio
     model = genai.GenerativeModel('gemini-3-flash-preview')
     
     style_desc = "បែបកំប្លែង TikTok" if style == "Funny" else "បែបអាជីព បច្ចេកទេស"
-    prompt = f"ក្នុងនាមជាអ្នកជំនាញ NextGen Byte-Tech សរសេរ Script TikTok លើប្រធានបទ: {keyword}។ ស្ទីល: {style_desc}។ ភាសាខ្មែរ។"
+    
+    # បន្ថែម Context ឱ្យ AI ស្គាល់ថាអ្នកគឺជាម្ចាស់ហាង IT ដើម្បីឱ្យសំណេរកាន់តែទាក់ទាញ
+    prompt = f"""
+    អ្នកគឺជាអ្នកជំនាញ Marketing ឌីជីថលសម្រាប់ហាង NextGen Byte-Tech នៅកម្ពុជា។
+    សូមសរសេរ Script វីដេអូខ្លីសម្រាប់ TikTok/Facebook Reels លើប្រធានបទ: {keyword}។
+    ស្ទីលសំណេរ: {style_desc}។
+    ភាសា: ខ្មែរ (ប្រើពាក្យពេចន៍យុវវ័យ និងបច្ចេកទេសឱ្យសមស្រប)។
+    គោលដៅ: ទាក់ទាញអតិថិជនឱ្យមកប្រើសេវាកម្មដំឡើង និងប្រឹក្សាយោបល់ IT។
+    """
     
     try:
         response = model.generate_content(prompt)
