@@ -4,6 +4,7 @@ from pytrends.request import TrendReq
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
+import time
 
 # --- ១. ការកំណត់ទំព័រ និង Branding ---
 st.set_page_config(
@@ -43,7 +44,6 @@ if not api_key:
 st.sidebar.title("🛡️ NextGen Config")
 st.sidebar.divider()
 
-# បញ្ជី Keywords ថ្មី (បន្ថែម Dahua, Sunell និងកាត់ពាក្យបច្ចេកទេសពេកចេញ)
 default_kw = ["CCTV", "Wifi Camera", "Hikvision", "Dahua", "Sunell", "Smart Home", "Ezviz"]
 selected_keywords = st.sidebar.multiselect("ជ្រើសរើស Keywords:", default_kw, default_kw)
 
@@ -55,14 +55,18 @@ time_map = {
 time_label = st.sidebar.selectbox("រយៈពេលវិភាគ:", list(time_map.keys()))
 time_value = time_map[time_label]
 
-# --- ៥. មុខងារជំនួយ (Functions) ---
+# --- ៥. មុខងារជំនួយ (Functions) ជាមួយប្រព័ន្ធការពារ ---
 @st.cache_data(ttl=3600)
 def get_trends(keywords, tf):
+    if not keywords: return pd.DataFrame()
     try:
-        py_req = TrendReq(hl='en-US', tz=360)
+        py_req = TrendReq(hl='en-US', tz=360, timeout=(10,25))
         py_req.build_payload(keywords, cat=0, timeframe=tf, geo='KH')
-        return py_req.interest_over_time()
-    except:
+        data = py_req.interest_over_time()
+        if not data.empty:
+            return data.drop(labels=['isPartial'], axis='columns', errors='ignore')
+        return pd.DataFrame()
+    except Exception as e:
         return pd.DataFrame()
 
 def ai_call(prompt):
@@ -78,7 +82,7 @@ def ai_call(prompt):
 st.title("🛡️ NextGen Byte-Tech: AI Intelligence Hub")
 st.write(f"**យុទ្ធសាស្ត្រមមី ធាតុភ្លើង ២០២៦** | 📅 {datetime.now().strftime('%d-%m-%Y')}")
 
-# --- ៧. បង្ហាញក្រាហ្វនិន្នាការទូទៅ (កែសម្រួលដើម្បីកុំឱ្យចេញលេខ ០) ---
+# --- ៧. បង្ហាញក្រាហ្វនិន្នាការទូទៅ ---
 st.subheader(f"📈 និន្នាការទីផ្សារ: {time_label}")
 df_trends = get_trends(selected_keywords, time_value)
 
@@ -86,16 +90,15 @@ if not df_trends.empty:
     cols = st.columns(len(selected_keywords))
     for i, kw in enumerate(selected_keywords):
         if kw in df_trends.columns:
-            # កែសម្រួល៖ ប្រើមធ្យមភាគ (mean) ជំនួសឱ្យតម្លៃចុងក្រោយ ដើម្បីឱ្យលេខលោតស្អាត
             avg_val = int(df_trends[kw].mean()) 
             cols[i].metric(label=kw, value=avg_val)
     
-    fig = px.line(df_trends.reset_index(), x='date', y=selected_keywords, template="plotly_dark")
-    st.plotly_chart(fig, width='stretch')
+    fig = px.line(df_trends.reset_index(), x='date', y=[k for k in selected_keywords if k in df_trends.columns], template="plotly_dark")
+    st.plotly_chart(fig, use_container_width=True)
 else:
-    st.warning("⚠️ Google Trends កំពុងមមាញឹក។ សូមរង់ចាំ ១ នាទី រួច Refresh ទំព័រឡើងវិញ។")
+    st.warning("⚠️ Google Trends កំពុងមមាញឹក ឬមិនមានទិន្នន័យ។ សូមរង់ចាំ ១ នាទី រួច Refresh ទំព័រឡើងវិញ។")
 
-# --- ៨. ការប្រៀបធៀប Brand (Market Share) ---
+# --- ៨. ការប្រៀបធៀប Brand (Market Share) ជាមួយមុខងារការពារ ---
 st.divider()
 st.subheader("⚔️ ការប្រៀបធៀបកេរ្តិ៍ឈ្មោះ Brand (Market Share)")
 
@@ -105,16 +108,19 @@ brand_comparison = st.multiselect(
     default=["Hikvision", "Dahua", "Sunell"]
 )
 
-df_compare = pd.DataFrame() # បង្កើតទុកជាមុនការពារ Error
+# បង្កើត df_compare ជាតម្លៃទទេជាមុន (ការពារ NameError ជួរទី ១៣៩)
+df_compare = pd.DataFrame() 
 
 if brand_comparison:
     try:
-        py_comp = TrendReq(hl='en-US', tz=360)
+        py_comp = TrendReq(hl='en-US', tz=360, timeout=(10,25))
         py_comp.build_payload(brand_comparison, cat=0, timeframe=time_value, geo='KH')
         df_compare = py_comp.interest_over_time()
         
         if not df_compare.empty:
-            avg_trends = df_compare[brand_comparison].mean().reset_index()
+            # លុប Column isPartial ចេញមុននឹងវិភាគ
+            df_plot = df_compare.drop(labels=['isPartial'], axis='columns', errors='ignore')
+            avg_trends = df_plot[brand_comparison].mean().reset_index()
             avg_trends.columns = ['Brand', 'Search Volume']
             
             c1, c2 = st.columns([2, 1])
@@ -122,7 +128,7 @@ if brand_comparison:
                 fig_pie = px.pie(avg_trends, values='Search Volume', names='Brand', 
                                 title="ចំណែកនៃការស្វែងរកក្នុងទីផ្សារ", hole=0.4, 
                                 template="plotly_dark")
-                st.plotly_chart(fig_pie, width='stretch')
+                st.plotly_chart(fig_pie, use_container_width=True)
             with c2:
                 top_b = avg_trends.loc[avg_trends['Search Volume'].idxmax(), 'Brand']
                 st.success(f"🏆 **{top_b}** ឈានមុខគេ!")
@@ -130,8 +136,10 @@ if brand_comparison:
                 if st.button("📋 វិភាគយុទ្ធសាស្ត្រដោយ AI"):
                     p = f"វិភាគទិន្នន័យ Brand IT ខ្មែរ: {avg_trends.to_dict()}។ សរសេរយុទ្ធសាស្ត្រលក់ឱ្យ NextGen Byte-Tech ជាខេមរភាសា។"
                     st.info(ai_call(p))
-    except:
-        st.error("⚠️ មិនអាចទាញយកទិន្នន័យប្រៀបធៀបបានទេ។ សូមផ្ដោតលើក្រាហ្វខាងលើសិន។")
+        else:
+            st.info("💡 មិនទាន់មានទិន្នន័យប្រៀបធៀបសម្រាប់ Brand ទាំងនេះទេ។")
+    except Exception:
+        st.error("⚠️ មិនអាចទាញយកទិន្នន័យប្រៀបធៀបបានទេក្នុងពេលនេះ (Google Rate Limit)។")
 
 # --- ៩. AI Script Generator ---
 st.divider()
@@ -139,7 +147,7 @@ st.subheader("🤖 NextGen AI Script Generator")
 col_l, col_r = st.columns([1, 2])
 
 with col_l:
-    target = st.selectbox("រើស Keyword សម្រាប់ Content:", selected_keywords)
+    target = st.selectbox("រើស Keyword សម្រាប់ Content:", selected_keywords if selected_keywords else ["CCTV"])
     style = st.radio("ស្ទីលសំណេរ:", ["កំប្លែង TikTok (Funny)", "អាជីពទុកចិត្តបាន (Professional)"])
     if st.button("🚀 បង្កើត Script ឥឡូវនេះ"):
         with st.spinner('✨ កំពុងរៀបចំ...'):
