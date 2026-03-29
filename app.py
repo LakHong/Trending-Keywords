@@ -73,7 +73,7 @@ def get_trends(keywords, tf):
 def ai_generate_content(key, keyword, style):
     genai.configure(api_key=key)
     # ប្រើ gemini-1.5-flash-latest ដើម្បីទទួលបានភាពត្រឹមត្រូវខ្ពស់បំផុត
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+    model = genai.GenerativeModel('gemini-3-flash-preview')
     
     style_desc = "បែបកំប្លែង TikTok" if style == "Funny" else "បែបអាជីព បច្ចេកទេស"
     prompt = f"ក្នុងនាមជាអ្នកជំនាញ NextGen Byte-Tech សរសេរ Script TikTok លើប្រធានបទ: {keyword}។ ស្ទីល: {style_desc}។ ភាសាខ្មែរ។"
