@@ -78,10 +78,7 @@ def get_trends(keywords, tf):
 def ai_generate_content(key, keyword, style):
     # កំណត់ Configuration ជាមួយ API Key ដែលបានបញ្ចូល
     genai.configure(api_key=key)
-    
-    # ប្រើ Model ឈ្មោះ 'gemini-1.5-flash' ដើម្បីការពារ Error 404
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    
+    model = genai.GenerativeModel('gemini-pro')
     style_desc = "បែបកំប្លែង TikTok (Funny/Viral)" if style == "Funny" else "បែបបច្ចេកទេសសុទ្ធ (Professional/Tech)"
     prompt = f"អ្នកគឺជាអ្នកជំនាញ Marketing សម្រាប់ NextGen Byte-Tech។ សរសេរ Script វីដេអូខ្លីលើប្រធានបទ: {keyword}។ ស្ទីល: {style_desc}។ ភាសាខ្មែរ។"
     
