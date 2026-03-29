@@ -5,45 +5,6 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 
-# --- កូដផ្នែក Trend Comparison ថ្មី ---
-st.divider()
-st.subheader("⚔️ ការប្រៀបធៀបកេរ្តិ៍ឈ្មោះ Brand (Market Share)")
-
-# បង្កើតបញ្ជី Brand សម្រាប់ប្រៀបធៀប
-brand_comparison = st.multiselect(
-    "ជ្រើសរើស Brand ដើម្បីប្រៀបធៀប:", 
-    ["Hikvision", "Dahua", "Sunell", "Ubiquiti", "Cisco", "TP-Link"],
-    default=["Hikvision", "Dahua", "Sunell"]
-)
-
-if brand_comparison:
-    try:
-        pytrends = TrendReq(hl='en-US', tz=360)
-        pytrends.build_payload(brand_comparison, cat=0, timeframe='today 3-m', geo='KH')
-        df_compare = pytrends.interest_over_time()
-        
-        if not df_compare.empty:
-            # បង្ហាញជាក្រាហ្វមធ្យមភាគ (Pie Chart) ដើម្បីមើលចំណែកទីផ្សារ
-            avg_trends = df_compare[brand_comparison].mean().reset_index()
-            avg_trends.columns = ['Brand', 'Search Volume']
-            
-            col_chart, col_data = st.columns([2, 1])
-            
-            with col_chart:
-                fig_pie = px.pie(avg_trends, values='Search Volume', names='Brand', 
-                                title="ចំណែកនៃការស្វែងរកក្នុងរយៈពេល ៣ ខែចុងក្រោយ (កម្ពុជា)",
-                                hole=0.4, template="plotly_dark",
-                                color_discrete_sequence=px.colors.sequential.YlOrRd)
-                st.plotly_chart(fig_pie, width='stretch')
-            
-            with col_data:
-                st.write("**📊 ការវិភាគបច្ចេកទេស៖**")
-                top_brand = avg_trends.loc[avg_trends['Search Volume'].idxmax(), 'Brand']
-                st.success(f"🏆 **{top_brand}** ជា Brand ដែលមានគេចាប់អារម្មណ៍ខ្លាំងជាងគេ!")
-                st.write("បងគួរតែពង្រឹង Content លើ Brand នេះឱ្យបានច្រើន។")
-    except:
-        st.warning("⚠️ មិនអាចទាញយកទិន្នន័យប្រៀបធៀបបានទេក្នុងពេលនេះ។")
-
 # --- ១. ការកំណត់ទំព័រ និង Branding ---
 st.set_page_config(
     page_title="NextGen AI Trend Center", 
@@ -132,7 +93,46 @@ def ai_generate_content(key, keyword, style):
     except Exception as e:
         return f"បញ្ហាបច្ចេកទេស AI: {str(e)}"
 
-# --- ៨. បង្ហាញលទ្ធផល (កែសម្រួលតាម Log Warning) ---
+# ---៨. កូដផ្នែក Trend Comparison ថ្មី ---
+st.divider()
+st.subheader("⚔️ ការប្រៀបធៀបកេរ្តិ៍ឈ្មោះ Brand (Market Share)")
+
+# បង្កើតបញ្ជី Brand សម្រាប់ប្រៀបធៀប
+brand_comparison = st.multiselect(
+    "ជ្រើសរើស Brand ដើម្បីប្រៀបធៀប:", 
+    ["Hikvision", "Dahua", "Sunell", "Ubiquiti", "Cisco", "TP-Link"],
+    default=["Hikvision", "Dahua", "Sunell"]
+)
+
+if brand_comparison:
+    try:
+        pytrends = TrendReq(hl='en-US', tz=360)
+        pytrends.build_payload(brand_comparison, cat=0, timeframe='today 3-m', geo='KH')
+        df_compare = pytrends.interest_over_time()
+        
+        if not df_compare.empty:
+            # បង្ហាញជាក្រាហ្វមធ្យមភាគ (Pie Chart) ដើម្បីមើលចំណែកទីផ្សារ
+            avg_trends = df_compare[brand_comparison].mean().reset_index()
+            avg_trends.columns = ['Brand', 'Search Volume']
+            
+            col_chart, col_data = st.columns([2, 1])
+            
+            with col_chart:
+                fig_pie = px.pie(avg_trends, values='Search Volume', names='Brand', 
+                                title="ចំណែកនៃការស្វែងរកក្នុងរយៈពេល ៣ ខែចុងក្រោយ (កម្ពុជា)",
+                                hole=0.4, template="plotly_dark",
+                                color_discrete_sequence=px.colors.sequential.YlOrRd)
+                st.plotly_chart(fig_pie, width='stretch')
+            
+            with col_data:
+                st.write("**📊 ការវិភាគបច្ចេកទេស៖**")
+                top_brand = avg_trends.loc[avg_trends['Search Volume'].idxmax(), 'Brand']
+                st.success(f"🏆 **{top_brand}** ជា Brand ដែលមានគេចាប់អារម្មណ៍ខ្លាំងជាងគេ!")
+                st.write("បងគួរតែពង្រឹង Content លើ Brand នេះឱ្យបានច្រើន។")
+    except:
+        st.warning("⚠️ មិនអាចទាញយកទិន្នន័យប្រៀបធៀបបានទេក្នុងពេលនេះ។")
+
+# --- ៩. បង្ហាញលទ្ធផល (កែសម្រួលតាម Log Warning) ---
 st.subheader("📈 និន្នាការទីផ្សារ IT នៅកម្ពុជា")
 df_trends = get_trends(selected_keywords, timeframe)
 
