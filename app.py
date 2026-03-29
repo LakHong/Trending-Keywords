@@ -56,7 +56,7 @@ st.sidebar.divider()
 st.sidebar.subheader("📊 ការកំណត់ Trend")
 default_kw = ["CCTV Cambodia", "UniFi Networking", "Hikvision AI", "IT Solution", "Smart Home"]
 selected_keywords = st.sidebar.multiselect("ជ្រើសរើស Keywords:", default_kw, default_kw)
-timeframe = st.sidebar.selectbox("រយៈពេលវិភាគ:", ["now 7-d", "today 1-m", "today 3-m"])
+timeframe = st.sidebar.selectbox("រយៈពេលវិភាគ:", ["៧ ថ្ងៃចុងក្រោយ (Hot Trend)", "១ ខែចុងក្រោយ (Monthly)", "៣ ខែចុងក្រោយ (Quarterly)"])
 
 # --- ៦. មុខងារ Google Trends ---
 @st.cache_data(ttl=3600)
