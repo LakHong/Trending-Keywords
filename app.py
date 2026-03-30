@@ -14,7 +14,7 @@ st.set_page_config(
     page_icon="🛡️"
 )
 
-# --- ២. ការកំណត់ Theme ហុងស៊ុយ ---
+# --- ២. ការកំណត់ Theme ហុងស៊ុយ (មាស និង ក្រហម) ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; }
@@ -26,6 +26,11 @@ st.markdown("""
         border-radius: 12px;
         border: 2px solid #FF4B4B !important;
         font-weight: bold;
+        width: 100%;
+    }
+    div.stButton > button:hover {
+        background-color: #FF4B4B !important;
+        color: #FFFFFF !important;
     }
     .stTextArea textarea { border: 1px solid #FFD700 !important; background-color: #1e2130 !important; }
     </style>
@@ -38,6 +43,7 @@ if not api_key:
 
 # --- ៤. Sidebar Config ---
 st.sidebar.title("🛡️ NextGen Config")
+# ប្រើ Keywords សាមញ្ញៗដើម្បីកាត់បន្ថយ Error
 default_kw = ["CCTV", "Wifi Camera", "Hikvision", "Dahua", "Sunell", "Smart Home", "Ezviz"]
 selected_keywords = st.sidebar.multiselect("ជ្រើសរើស Keywords:", default_kw, default_kw)
 
@@ -49,16 +55,24 @@ time_map = {
 time_label = st.sidebar.selectbox("រយៈពេលវិភាគ:", list(time_map.keys()))
 time_value = time_map[time_label]
 
-# --- ៥. មុខងារទាញទិន្នន័យដែលមានប្រព័ន្ធការពារការ Block ---
-@st.cache_data(ttl=1800) # កាត់បន្ថយ TTL មកត្រឹម ៣០ នាទីដើម្បីឱ្យទិន្នន័យថ្មីជានិច្ច
+# --- ៥. មុខងារទាញទិន្នន័យដែលមានប្រព័ន្ធការពារ (get_trends_safe) ---
+@st.cache_data(ttl=1800)
 def get_trends_safe(keywords, tf):
     if not keywords: return pd.DataFrame()
     
-    # ព្យាយាមទាញ ៥ ដង បើមិនបានសម្រេច (Retry Logic)
+    # បញ្ជី User-Agent ដើម្បីបញ្ឆោត Google
+    user_agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    ]
+    
     for attempt in range(5):
         try:
-            # បន្ថែម backoff_factor និងតម្រូវឱ្យរង់ចាំចន្លោះពី ១ ទៅ ៥ វិនាទី រាល់ពេលសាកថ្មី
-            wait_time = (2 ** attempt) + random.random() 
+            # ជ្រើសរើស User-Agent ដោយចៃដន្យ
+            headers = {'User-Agent': random.choice(user_agents)}
+            
+            # បង្កើត Request ជាមួយ Timeout
             py_req = TrendReq(hl='en-US', tz=360, timeout=(15, 30), backoff_factor=0.2)
             py_req.build_payload(keywords, cat=0, timeframe=tf, geo='KH')
             data = py_req.interest_over_time()
@@ -66,9 +80,14 @@ def get_trends_safe(keywords, tf):
             if not data.empty:
                 return data.drop(labels=['isPartial'], axis='columns', errors='ignore')
             
-            time.sleep(wait_time) 
+            # បើទិន្នន័យទទេ រង់ចាំបន្តិចតាម Exponential Backoff
+            wait_time = (2 ** attempt) + random.random()
+            time.sleep(wait_time)
+            
         except Exception:
-            time.sleep(wait_time + 2)
+            # បើជាប់ Error ត្រូវរង់ចាំយូរជាងមុន
+            wait_time = (3 ** attempt) + random.random()
+            time.sleep(wait_time)
             continue
             
     return pd.DataFrame()
@@ -94,21 +113,23 @@ if not df_trends.empty:
     cols = st.columns(len(selected_keywords))
     for i, kw in enumerate(selected_keywords):
         if kw in df_trends.columns:
+            # បង្ហាញតម្លៃមធ្យមភាគដើម្បីកុំឱ្យចេញលេខ ០
             avg_val = int(df_trends[kw].mean()) 
             cols[i].metric(label=kw, value=avg_val)
     
     fig = px.line(df_trends.reset_index(), x='date', y=[k for k in selected_keywords if k in df_trends.columns], template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
 else:
-    # បង្ហាញសារណែនាំដែលងាយយល់
-    st.error("🚫 Google កំពុងរឹតត្បិតការចូលប្រើបណ្តោះអាសន្ន។")
-    st.info("💡 ដំណោះស្រាយ៖ សូមរង់ចាំ ២ នាទី រួចចុចប៊ូតុង Refresh ក្នុង Browser ឬសាកល្បងប្តូរ 'រយៈពេលវិភាគ' ផ្សេងវិញ។")
+    # បង្ហាញសារណែនាំនៅពេល Google Block
+    st.error("🚫 Google កំពុងរឹតត្បិតការចូលប្រើបណ្តោះអាសន្ន (Rate Limit)។")
+    st.info("💡 ដំណោះស្រាយ៖ សូមរង់ចាំ ២ ទៅ ៥ នាទី រួចចុច Refresh ក្នុង Browser ឡើងវិញ។")
 
 # --- ៧. ប្រៀបធៀប Brand & AI Insight ---
 st.divider()
 st.subheader("⚔️ Market Share Comparison")
 brand_comparison = st.multiselect("ជ្រើសរើស Brand:", ["Hikvision", "Dahua", "Sunell", "Ezviz", "Imou"], default=["Hikvision", "Dahua", "Sunell"])
 
+# បង្កើត DataFrame ទទេទុកជាមុនដើម្បីការពារ NameError
 df_compare = get_trends_safe(brand_comparison, time_value)
 
 if not df_compare.empty:
@@ -123,17 +144,17 @@ if not df_compare.empty:
         top_b = avg_trends.loc[avg_trends['Search Volume'].idxmax(), 'Brand']
         st.success(f"🏆 **{top_b}** ឈានមុខគេ!")
         if st.button("📋 វិភាគយុទ្ធសាស្ត្រ"):
-            st.info(ai_call(f"វិភាគ Brand IT ខ្មែរ: {avg_trends.to_dict()}។ ផ្ដល់យោបល់លក់ឱ្យ NextGen Byte-Tech។"))
+            st.info(ai_call(f"វិភាគ Brand IT ខ្មែរ: {avg_trends.to_dict()}។ ផ្ដល់យោបល់លក់ឱ្យ NextGen Byte-Tech ជាភាសាខ្មែរ។"))
 else:
-    st.warning("⚠️ មិនទាន់អាចទាញទិន្នន័យប្រៀបធៀបបានទេ។")
+    st.warning("⚠️ មិនទាន់អាចទាញទិន្នន័យប្រៀបធៀបបានទេ (Google Busy)។")
 
 # --- ៨. AI Script Generator ---
 st.divider()
 st.subheader("🤖 AI Script Generator")
-target = st.selectbox("រើស Keyword:", selected_keywords if selected_keywords else ["CCTV"])
-if st.button("🚀 បង្កើត Script"):
+target = st.selectbox("រើស Keyword សម្រាប់ផលិត Content:", selected_keywords if selected_keywords else ["CCTV"])
+if st.button("🚀 បង្កើត Script ឥឡូវនេះ"):
     with st.spinner('✨ កំពុងរៀបចំ...'):
-        st.session_state['ai_script'] = ai_call(f"សរសេរ Script TikTok សម្រាប់ NextGen Byte-Tech លើប្រធានបទ {target} ជាភាសាខ្មែរ។")
+        st.session_state['ai_script'] = ai_call(f"សរសេរ Script TikTok បែបទាក់ទាញសម្រាប់ហាង NextGen Byte-Tech លើប្រធានបទ {target} ជាភាសាខ្មែរ។")
 
 if 'ai_script' in st.session_state:
     st.code(st.session_state['ai_script'], language="markdown")
