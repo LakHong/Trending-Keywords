@@ -59,58 +59,6 @@ time_map = {
 time_label = st.sidebar.selectbox("រយៈពេលវិភាគ:", list(time_map.keys()))
 time_value = time_map[time_label]
 
-# --- ៥. មុខងារទាញទិន្នន័យដែលមានប្រព័ន្ធការពារ (get_trends_safe) ---
-@st.cache_data(ttl=1800)
-def get_trends_safe(keywords, tf):
-    if not keywords: return pd.DataFrame()
-    
-    # បញ្ជី User-Agent ដើម្បីបញ្ឆោត Google
-    user_agents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    ]
-    
-    for attempt in range(5):
-        try:
-            # ជ្រើសរើស User-Agent ដោយចៃដន្យ
-            headers = {'User-Agent': random.choice(user_agents)}
-            
-            # បង្កើត Request ជាមួយ Timeout
-            py_req = TrendReq(hl='en-US', tz=360, timeout=(15, 30), backoff_factor=0.2)
-            py_req.build_payload(keywords, cat=0, timeframe=tf, geo='KH')
-            data = py_req.interest_over_time()
-            
-            if not data.empty:
-                return data.drop(labels=['isPartial'], axis='columns', errors='ignore')
-            
-            # បើទិន្នន័យទទេ រង់ចាំបន្តិចតាម Exponential Backoff
-            wait_time = (2 ** attempt) + random.random()
-            time.sleep(wait_time)
-            
-        except Exception:
-            # បើជាប់ Error ត្រូវរង់ចាំយូរជាងមុន
-            wait_time = (3 ** attempt) + random.random()
-            time.sleep(wait_time)
-            continue
-            
-    return pd.DataFrame()
-
-def ai_call(prompt):
-    if not api_key: return "❌ សូមបញ្ចូល API Key!"
-    try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-3-flash-preview')
-        return model.generate_content(prompt).text
-    except Exception as e:
-        return f"⚠️ AI Error: {str(e)}"
-
-# --- ៥. Main UI ---
-st.title("🛡️ NextGen Byte-Tech: AI Intelligence Hub")
-st.sidebar.title("⚙️ Config")
-default_kw = ["CCTV", "Hikvision", "Dahua", "Sunell", "Smart Home"]
-selected_keywords = st.sidebar.multiselect("ជ្រើសរើស Keywords:", default_kw, default_kw)
-
 # បង្ហាញក្រាហ្វ
 st.subheader("📈 និន្នាការទីផ្សារកម្ពុជា")
 df_trends = get_trends_safe(selected_keywords, "today 1-m")
