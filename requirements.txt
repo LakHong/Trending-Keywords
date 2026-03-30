@@ -1,5 +1,5 @@
-streamlit
-google-generativeai>=0.5.0
-pytrends
-pandas
-plotly
+streamlit>=1.55.0
+pandas>=2.2.0
+pytrends>=4.9.2
+google-generativeai>=0.8.0
+plotly>=6.0.0
