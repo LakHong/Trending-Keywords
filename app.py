@@ -122,20 +122,47 @@ else:
 
 st.divider()
 
-# --- ១០. AI Script Generator ---
+# --- ១០. AI Script Generator (Updated: Funny & Professional Styles) ---
+st.divider()
 st.subheader("🤖 AI Script Generator")
-col_left, col_right = st.columns([1, 2])
 
-with col_left:
-    target_kw = st.selectbox("ជ្រើសរើស Keyword:", selected_keywords)
-    content_style = st.radio("ជ្រើសរើសស្ទីល:", ["Funny", "Professional"])
+col_input, col_display = st.columns([1, 2])
+
+with col_input:
+    # បញ្ជី Keyword សម្រាប់ជ្រើសរើស (យកចេញពី Brand និង Trend)
+    all_options = list(set(selected_brands + general_kw))
+    target_kw = st.selectbox("រើសប្រធានបទផលិត Content:", all_options)
+    
+    # បន្ថែមការជ្រើសរើសស្ទីលសំណេរ
+    script_style = st.radio(
+        "ជ្រើសរើសស្ទីលសំណេរ:",
+        ["បែបកំប្លែង TikTok (Funny)", "បែបអាជីព (Professional)"],
+        index=0
+    )
+    
     generate_btn = st.button("🚀 បង្កើត Script ឥឡូវនេះ")
 
-with col_right:
+with col_display:
     if generate_btn:
-        if not api_key:
-            st.error("❌ សូមបញ្ចូល API Key!")
+        if api_key:
+            with st.spinner('✨ AI កំពុងរៀបចំសំណេរ...'):
+                # កំណត់ Prompt ទៅតាមស្ទីលដែលបានជ្រើសរើស
+                style_context = ""
+                if "Funny" in script_style:
+                    style_context = "បែបកំប្លែង ឌឺដងតិចៗ ប្រើពាក្យយុវវ័យទាន់សម័យ (Slang) សមស្របសម្រាប់ TikTok Reels"
+                else:
+                    style_context = "បែបអាជីព ផ្ដោតលើបច្ចេកទេស ទំនុកចិត្ត និងអត្ថប្រយោជន៍សម្រាប់អាជីវកម្ម (B2B/Professional)"
+
+                prompt = f"""
+                អ្នកគឺជាអ្នកជំនាញមាតិកា (Content Creator) ឱ្យហាង NextGen Byte-Tech នៅកម្ពុជា។
+                សូមសរសេរ Script វីដេអូខ្លីលើប្រធានបទ: {target_kw}។
+                ស្ទីលសំណេរ: {style_context}។
+                ភាសា: ខ្មែរ។
+                រចនាសម្ព័ន្ធ: មាន Hook (ទាក់ទាញដើមវីដេអូ), Body (ខ្លឹមសារ), និង CTA (ជំរុញឱ្យអតិថិជនទាក់ទងមកហាង)។
+                """
+                
+                script_result = ai_call(prompt)
+                st.markdown(f"### 📝 លទ្ធផល ({script_style})")
+                st.code(script_result, language="markdown")
         else:
-            with st.spinner('✨ AI កំពុងរៀបចំ...'):
-                script_out = ai_generate_content(api_key, target_kw, content_style)
-                st.code(script_out, language="markdown")
+            st.warning("⚠️ សូមបញ្ចូល Gemini API Key នៅក្នុង Sidebar ជាមុនសិន!")
