@@ -124,8 +124,18 @@ st.divider()
 
 # --- ១០. AI Script Generator ---
 st.subheader("🤖 AI Script Generator")
-target_kw = st.selectbox("រើស Keyword សម្រាប់ផលិត Content:", selected_brands + general_kw)
-if st.button("🚀 បង្កើត Script TikTok"):
-    with st.spinner('✨ កំពុងរៀបចំ...'):
-        script_prompt = f"សរសេរ Script TikTok បែបទាក់ទាញសម្រាប់ហាង NextGen Byte-Tech លើប្រធានបទ {target_kw} ជាភាសាខ្មែរ។"
-        st.code(ai_call(script_prompt), language="markdown")
+col_left, col_right = st.columns([1, 2])
+
+with col_left:
+    target_kw = st.selectbox("ជ្រើសរើស Keyword:", selected_keywords)
+    content_style = st.radio("ជ្រើសរើសស្ទីល:", ["Funny", "Professional"])
+    generate_btn = st.button("🚀 បង្កើត Script ឥឡូវនេះ")
+
+with col_right:
+    if generate_btn:
+        if not api_key:
+            st.error("❌ សូមបញ្ចូល API Key!")
+        else:
+            with st.spinner('✨ AI កំពុងរៀបចំ...'):
+                script_out = ai_generate_content(api_key, target_kw, content_style)
+                st.code(script_out, language="markdown")
