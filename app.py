@@ -1,154 +1,76 @@
 import streamlit as st
-import google.generativeai as genai
-from pytrends.request import TrendReq
 import pandas as pd
-import plotly.express as px
+import time
+import random
 from datetime import datetime
 
-# --- ១. ការកំណត់ទំព័រ និង Branding ---
-st.set_page_config(
-    page_title="NextGen AI Trend Center", 
-    layout="wide", 
-    page_icon="🛡️"
-)
+# កែសម្រួលតាម Log: បំបាត់ FutureWarning របស់ Pandas
+pd.set_option('future.no_silent_downcasting', True)
 
-# --- ២. ការកំណត់ Theme ហុងស៊ុយ (មាស និង ក្រហម) ---
+import google.generativeai as genai
+from pytrends.request import TrendReq
+import plotly.express as px
+
+# --- ១. ការកំណត់ទំព័រ (Update តាម Log 2026) ---
+st.set_page_config(page_title="NextGen AI Trend Center", layout="wide", page_icon="🛡️")
+
+# --- ២. Theme ហុងស៊ុយ ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; }
     h1, h2, h3 { color: #FFD700 !important; text-shadow: 2px 2px #FF4B4B; }
-    [data-testid="stMetricValue"] { color: #FFD700 !important; }
-    div.stButton > button:first-child {
-        background-color: #FFD700 !important;
-        color: #000000 !important;
-        border-radius: 12px;
-        border: 2px solid #FF4B4B !important;
-        font-weight: bold;
-        width: 100%;
-    }
-    div.stButton > button:hover {
-        background-color: #FF4B4B !important;
-        color: #FFFFFF !important;
-    }
-    .stTextArea textarea { border: 1px solid #FFD700 !important; background-color: #1e2130 !important; }
+    div.stButton > button { background-color: #FFD700 !important; color: #000 !important; font-weight: bold; width: 100%; border-radius: 12px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- ៣. ប្រព័ន្ធគ្រប់គ្រង API Key ---
-api_key = None
-try:
-    if "GEMINI_API_KEY" in st.secrets:
-        api_key = st.secrets["GEMINI_API_KEY"]
-except:
-    pass
-
+# --- ៣. API Key ---
+api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
-    api_key = st.sidebar.text_input("🔑 បញ្ចូល Gemini API Key:", type="password")
-    if not api_key:
-        st.sidebar.info("💡 សូមបញ្ចូល API Key ដើម្បីដំណើរការ AI។")
+    api_key = st.sidebar.text_input("🔑 Gemini API Key:", type="password")
 
-# --- ៤. ចំណងជើង ---
+# --- ៤. មុខងារទាញទិន្នន័យ (Robust Version) ---
+@st.cache_data(ttl=1800)
+def get_trends_safe(keywords, tf):
+    if not keywords: return pd.DataFrame()
+    for attempt in range(3):
+        try:
+            py_req = TrendReq(hl='en-US', tz=360, timeout=(20, 45))
+            py_req.build_payload(keywords, cat=0, timeframe=tf, geo='KH')
+            data = py_req.interest_over_time()
+            if not data.empty:
+                return data.drop(labels=['isPartial'], axis='columns', errors='ignore')
+            time.sleep(random.uniform(3, 7))
+        except:
+            time.sleep(10)
+            continue
+    return pd.DataFrame()
+
+# --- ៥. Main UI ---
 st.title("🛡️ NextGen Byte-Tech: AI Intelligence Hub")
-st.write(f"**យុទ្ធសាស្ត្រមមី ធាតុភ្លើង ២០២៦** | 📅 {datetime.now().strftime('%d-%m-%Y')}")
-
-# --- ៥. Sidebar ---
-st.sidebar.divider()
-st.sidebar.subheader("📊 ការកំណត់ Trend")
-default_kw = ["CCTV Cambodia", "UniFi Networking", "Hikvision AI", "IT Solution", "Smart Home"]
+st.sidebar.title("⚙️ Config")
+default_kw = ["CCTV", "Hikvision", "Dahua", "Sunell", "Smart Home"]
 selected_keywords = st.sidebar.multiselect("ជ្រើសរើស Keywords:", default_kw, default_kw)
-timeframe = st.sidebar.selectbox("រយៈពេលវិភាគ:", ["now 7-d", "today 1-m", "today 3-m"])
 
-# --- ៦. មុខងារ Google Trends ---
-@st.cache_data(ttl=3600)
-def get_trends(keywords, tf):
-    try:
-        pytrends = TrendReq(hl='en-US', tz=360)
-        pytrends.build_payload(keywords, cat=0, timeframe=tf, geo='KH', gprop='')
-        df = pytrends.interest_over_time()
-        return df
-    except:
-        return pd.DataFrame()
-
-# --- ៧. ប្រៀបធៀប Brand & AI Insight ---
-st.divider()
-st.subheader("⚔️ Market Share Comparison")
-brand_comparison = st.multiselect("ជ្រើសរើស Brand:", ["Hikvision", "Dahua", "Sunell", "Ezviz", "Imou"], default=["Hikvision", "Dahua", "Sunell"])
-
-# បង្កើត DataFrame ទទេទុកជាមុនដើម្បីការពារ NameError
-df_compare = get_trends_safe(brand_comparison, time_value)
-
-if not df_compare.empty:
-    avg_trends = df_compare[brand_comparison].mean().reset_index()
-    avg_trends.columns = ['Brand', 'Search Volume']
-    
-    c1, c2 = st.columns([2, 1])
-    with c1:
-        fig_pie = px.pie(avg_trends, values='Search Volume', names='Brand', hole=0.4, template="plotly_dark")
-        st.plotly_chart(fig_pie, use_container_width=True)
-    with c2:
-        top_b = avg_trends.loc[avg_trends['Search Volume'].idxmax(), 'Brand']
-        st.success(f"🏆 **{top_b}** ឈានមុខគេ!")
-        if st.button("📋 វិភាគយុទ្ធសាស្ត្រ"):
-            st.info(ai_call(f"វិភាគ Brand IT ខ្មែរ: {avg_trends.to_dict()}។ ផ្ដល់យោបល់លក់ឱ្យ NextGen Byte-Tech ជាភាសាខ្មែរ។"))
-else:
-    st.warning("⚠️ មិនទាន់អាចទាញទិន្នន័យប្រៀបធៀបបានទេ (Google Busy)។")
-
-# --- ៨. មុខងារ AI Content Generator (បង្ខំប្រើ Version ខ្ពស់បំផុត) ---
-def ai_generate_content(key, keyword, style):
-    genai.configure(api_key=key)
-    
-    # ប្រើ Model ជំនាន់ថ្មីដែលលោកអ្នកបានរកឃើញក្នុង AI Studio
-    model = genai.GenerativeModel('gemini-3-flash-preview')
-    
-    style_desc = "បែបកំប្លែង TikTok" if style == "Funny" else "បែបអាជីព បច្ចេកទេស"
-    
-    # បន្ថែម Context ឱ្យ AI ស្គាល់ថាអ្នកគឺជាម្ចាស់ហាង IT ដើម្បីឱ្យសំណេរកាន់តែទាក់ទាញ
-    prompt = f"""
-    អ្នកគឺជាអ្នកជំនាញ Marketing ឌីជីថលសម្រាប់ហាង NextGen Byte-Tech នៅកម្ពុជា។
-    សូមសរសេរ Script វីដេអូខ្លីសម្រាប់ TikTok/Facebook Reels លើប្រធានបទ: {keyword}។
-    ស្ទីលសំណេរ: {style_desc}។
-    ភាសា: ខ្មែរ (ប្រើពាក្យពេចន៍យុវវ័យ និងបច្ចេកទេសឱ្យសមស្រប)។
-    គោលដៅ: ទាក់ទាញអតិថិជនឱ្យមកប្រើសេវាកម្មដំឡើង និងប្រឹក្សាយោបល់ IT។
-    """
-    
-    try:
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"បញ្ហាបច្ចេកទេស AI: {str(e)}"
-
-# --- ៨. បង្ហាញលទ្ធផល (កែសម្រួលតាម Log Warning) ---
-st.subheader("📈 និន្នាការទីផ្សារ IT នៅកម្ពុជា")
-df_trends = get_trends(selected_keywords, timeframe)
+# បង្ហាញក្រាហ្វ
+st.subheader("📈 និន្នាការទីផ្សារកម្ពុជា")
+df_trends = get_trends_safe(selected_keywords, "today 1-m")
 
 if not df_trends.empty:
-    num_cols = len(selected_keywords)
-    if num_cols > 0:
-        cols = st.columns(num_cols)
-        for i, kw in enumerate(selected_keywords):
-            if kw in df_trends.columns:
-                latest = int(df_trends[kw].iloc[-1])
-                cols[i].metric(label=kw, value=latest)
-    
-    fig = px.line(df_trends.reset_index(), x='date', y=selected_keywords, template="plotly_dark")
-    # កែពី use_container_width=True មកជា width='stretch' តាម Log
+    fig = px.line(df_trends.reset_index(), x='date', y=[k for k in selected_keywords if k in df_trends.columns], template="plotly_dark")
+    # កែសម្រួលតាម Log: ប្រើ width='stretch' ជំនួស use_container_width
     st.plotly_chart(fig, width='stretch')
+else:
+    st.error("🚫 Google Trends កំពុងជាប់រវល់ (Rate Limit)។")
+    st.info("💡 ដំណោះស្រាយ៖ បងត្រូវរង់ចាំ ៥-១០ នាទី រួច Reboot App ក្នុង Streamlit Dashboard។")
 
+# --- ៦. AI Script ---
 st.divider()
-
 st.subheader("🤖 AI Script Generator")
-col_left, col_right = st.columns([1, 2])
-
-with col_left:
-    target_kw = st.selectbox("ជ្រើសរើស Keyword:", selected_keywords)
-    content_style = st.radio("ជ្រើសរើសស្ទីល:", ["Funny", "Professional"])
-    generate_btn = st.button("🚀 បង្កើត Script ឥឡូវនេះ")
-
-with col_right:
-    if generate_btn:
-        if not api_key:
-            st.error("❌ សូមបញ្ចូល API Key!")
-        else:
-            with st.spinner('✨ AI កំពុងរៀបចំ...'):
-                script_out = ai_generate_content(api_key, target_kw, content_style)
-                st.code(script_out, language="markdown")
+if st.button("🚀 បង្កើត Script TikTok"):
+    if api_key:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-3-flash-preview')
+        prompt = f"សរសេរ Script TikTok សម្រាប់ហាង NextGen Byte-Tech លើប្រធានបទ {selected_keywords[0] if selected_keywords else 'CCTV'} ជាភាសាខ្មែរ។"
+        st.write(model.generate_content(prompt).text)
+    else:
+        st.warning("Please enter API Key")
