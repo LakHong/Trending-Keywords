@@ -69,6 +69,39 @@ def get_trends(keywords, tf):
     except:
         return pd.DataFrame()
 
+# --- ៩. ផ្នែកប្រៀបធៀប Brand (ថ្មី!) ---
+st.subheader("⚔️ Brand Market Share Comparison (Cambodia)")
+brands = ["Hikvision", "Dahua", "Sunell", "Ezviz", "Imou"]
+selected_brands = st.multiselect("ជ្រើសរើស Brand ដើម្បីប្រៀបធៀប:", brands, default=["Hikvision", "Dahua", "Sunell"])
+
+df_brand = get_trends(selected_brands, timeframe)
+
+if not df_brand.empty:
+    # គណនាមធ្យមភាគដើម្បីធ្វើ Pie Chart
+    avg_vals = df_brand[selected_brands].mean().reset_index()
+    avg_vals.columns = ['Brand', 'Search Volume']
+    
+    col_chart, col_insight = st.columns([2, 1])
+    
+    with col_chart:
+        fig_pie = px.pie(avg_vals, values='Search Volume', names='Brand', hole=0.4, 
+                         color_discrete_sequence=px.colors.sequential.YlOrRd,
+                         template="plotly_dark")
+        st.plotly_chart(fig_pie, width='stretch')
+    
+    with col_insight:
+        top_brand = avg_vals.loc[avg_vals['Search Volume'].idxmax(), 'Brand']
+        st.success(f"🏆 **{top_brand}** កំពុងមានប្រជាប្រិយភាពបំផុត!")
+        
+        if st.button("📋 វិភាគយុទ្ធសាស្ត្រលក់"):
+            with st.spinner('🤖 AI កំពុងវិភាគ...'):
+                insight_prompt = f"វិភាគទិន្នន័យ Brand IT នៅខ្មែរ: {avg_vals.to_dict()}។ ផ្ដល់យោបល់ឱ្យហាង NextGen Byte-Tech ថាគួរផ្ដោតលើ Brand ណា និងរៀបចំការលក់យ៉ាងដូចម្ដេច? (ឆ្លើយជាខ្មែរ)"
+                st.info(ai_call(insight_prompt))
+else:
+    st.info("💡 កំពុងរង់ចាំការជ្រើសរើស Brand ឬការអនុញ្ញាតពី Google...")
+
+st.divider()
+
 # --- ៧. មុខងារ AI Content Generator (បង្ខំប្រើ Version ខ្ពស់បំផុត) ---
 def ai_generate_content(key, keyword, style):
     genai.configure(api_key=key)
