@@ -69,7 +69,30 @@ def get_trends(keywords, tf):
     except:
         return pd.DataFrame()
 
-# --- ៧. មុខងារ AI Content Generator (បង្ខំប្រើ Version ខ្ពស់បំផុត) ---
+# --- ៧. Main UI ---
+st.title("🛡️ NextGen Byte-Tech: AI Intelligence Hub")
+st.write(f"📅 {datetime.now().strftime('%d-%m-%Y')}")
+
+# បង្ហាញក្រាហ្វនិន្នាការ
+st.subheader(f"📈 និន្នាការទីផ្សារ: {time_label}")
+df_trends = get_trends_safe(selected_keywords, time_value)
+
+if not df_trends.empty:
+    cols = st.columns(len(selected_keywords))
+    for i, kw in enumerate(selected_keywords):
+        if kw in df_trends.columns:
+            # បង្ហាញតម្លៃមធ្យមភាគដើម្បីកុំឱ្យចេញលេខ ០
+            avg_val = int(df_trends[kw].mean()) 
+            cols[i].metric(label=kw, value=avg_val)
+    
+    fig = px.line(df_trends.reset_index(), x='date', y=[k for k in selected_keywords if k in df_trends.columns], template="plotly_dark")
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    # បង្ហាញសារណែនាំនៅពេល Google Block
+    st.error("🚫 Google កំពុងរឹតត្បិតការចូលប្រើបណ្តោះអាសន្ន (Rate Limit)។")
+    st.info("💡 ដំណោះស្រាយ៖ សូមរង់ចាំ ២ ទៅ ៥ នាទី រួចចុច Refresh ក្នុង Browser ឡើងវិញ។")
+
+# --- ៨. មុខងារ AI Content Generator (បង្ខំប្រើ Version ខ្ពស់បំផុត) ---
 def ai_generate_content(key, keyword, style):
     genai.configure(api_key=key)
     
