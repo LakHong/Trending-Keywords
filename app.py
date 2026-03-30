@@ -45,6 +45,20 @@ def get_trends_safe(keywords, tf):
             continue
     return pd.DataFrame()
 
+# --- ៥. Sidebar Config ---
+st.sidebar.title("🛡️ NextGen Config")
+# ប្រើ Keywords សាមញ្ញៗដើម្បីកាត់បន្ថយ Error
+default_kw = ["CCTV", "Wifi Camera", "Hikvision", "Dahua", "Sunell", "Smart Home", "Ezviz"]
+selected_keywords = st.sidebar.multiselect("ជ្រើសរើស Keywords:", default_kw, default_kw)
+
+time_map = {
+    "៧ ថ្ងៃចុងក្រោយ (Hot Trend)": "now 7-d",
+    "១ ខែចុងក្រោយ (Monthly)": "today 1-m",
+    "៣ ខែចុងក្រោយ (Quarterly)": "today 3-m"
+}
+time_label = st.sidebar.selectbox("រយៈពេលវិភាគ:", list(time_map.keys()))
+time_value = time_map[time_label]
+
 # --- ៥. Main UI ---
 st.title("🛡️ NextGen Byte-Tech: AI Intelligence Hub")
 st.sidebar.title("⚙️ Config")
