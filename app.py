@@ -4,6 +4,7 @@ from pytrends.request import TrendReq
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
+import time
 
 # --- ១. ការកំណត់ទំព័រ និង Branding ---
 st.set_page_config(
@@ -18,7 +19,7 @@ st.markdown("""
     .stApp { background-color: #0E1117; }
     h1, h2, h3 { color: #FFD700 !important; text-shadow: 2px 2px #FF4B4B; }
     [data-testid="stMetricValue"] { color: #FFD700 !important; }
-    div.stButton > button:first-child {
+    div.stButton > button {
         background-color: #FFD700 !important;
         color: #000000 !important;
         border-radius: 12px;
@@ -35,39 +36,58 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- ៣. ប្រព័ន្ធគ្រប់គ្រង API Key ---
-api_key = None
-try:
-    if "GEMINI_API_KEY" in st.secrets:
-        api_key = st.secrets["GEMINI_API_KEY"]
-except:
-    pass
-
+api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
-    api_key = st.sidebar.text_input("🔑 បញ្ចូល Gemini API Key:", type="password")
-    if not api_key:
-        st.sidebar.info("💡 សូមបញ្ចូល API Key ដើម្បីដំណើរការ AI។")
+    api_key = st.sidebar.text_input("🔑 Gemini API Key:", type="password")
 
-# --- ៤. ចំណងជើង ---
+# --- ៤. មុខងារ Google Trends (បង្កើនស្ថេរភាព) ---
+@st.cache_data(ttl=3600)
+def get_trends(keywords, tf):
+    if not keywords: return pd.DataFrame()
+    try:
+        # បន្ថែមការកំណត់ដោះស្រាយបញ្ហា Downcasting តាម Log
+        pd.set_option('future.no_silent_downcasting', True)
+        pytrends = TrendReq(hl='en-US', tz=360, timeout=(10,25))
+        pytrends.build_payload(keywords, cat=0, timeframe=tf, geo='KH')
+        df = pytrends.interest_over_time()
+        if not df.empty:
+            return df.drop(labels=['isPartial'], axis='columns', errors='ignore')
+        return pd.DataFrame()
+    except:
+        return pd.DataFrame()
+
+# --- ៥. មុខងារ AI Analysis ---
+def ai_call(prompt):
+    if not api_key: return "❌ សូមបញ្ចូល API Key!"
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-3-flash-preview')
+        return model.generate_content(prompt).text
+    except Exception as e:
+        return f"⚠️ AI Error: {str(e)}"
+
+# --- ៦. Main UI ---
 st.title("🛡️ NextGen Byte-Tech: AI Intelligence Hub")
 st.write(f"**យុទ្ធសាស្ត្រមមី ធាតុភ្លើង ២០២៦** | 📅 {datetime.now().strftime('%d-%m-%Y')}")
 
-# --- ៥. Sidebar ---
-st.sidebar.divider()
-st.sidebar.subheader("📊 ការកំណត់ Trend")
-default_kw = ["CCTV Cambodia", "UniFi Networking", "Hikvision AI", "IT Solution", "Smart Home"]
-selected_keywords = st.sidebar.multiselect("ជ្រើសរើស Keywords:", default_kw, default_kw)
-timeframe = st.sidebar.selectbox("រយៈពេលវិភាគ:", ["now 7-d", "today 1-m", "today 3-m"])
+# --- ៧. Sidebar Config ---
+st.sidebar.subheader("📊 ការកំណត់វិភាគ")
+time_map = {"៧ ថ្ងៃចុងក្រោយ": "now 7-d", "១ ខែចុងក្រោយ": "today 1-m", "៣ ខែចុងក្រោយ": "today 3-m"}
+time_label = st.sidebar.selectbox("រយៈពេលវិភាគ:", list(time_map.keys()))
+timeframe = time_map[time_label]
 
-# --- ៦. មុខងារ Google Trends ---
-@st.cache_data(ttl=3600)
-def get_trends(keywords, tf):
-    try:
-        pytrends = TrendReq(hl='en-US', tz=360)
-        pytrends.build_payload(keywords, cat=0, timeframe=tf, geo='KH', gprop='')
-        df = pytrends.interest_over_time()
-        return df
-    except:
-        return pd.DataFrame()
+# --- ៨. ផ្នែកនិន្នាការទូទៅ ---
+st.subheader(f"📈 និន្នាការទីផ្សារ: {time_label}")
+general_kw = ["CCTV", "Wifi Camera", "Smart Home", "Networking"]
+df_gen = get_trends(general_kw, timeframe)
+
+if not df_gen.empty:
+    fig_gen = px.line(df_gen.reset_index(), x='date', y=general_kw, template="plotly_dark")
+    st.plotly_chart(fig_gen, width='stretch')
+else:
+    st.warning("⚠️ មិនអាចទាញទិន្នន័យបាន (Google Busy)។ សូមរង់ចាំ ២ នាទី រួច Refresh។")
+
+st.divider()
 
 # --- ៩. ផ្នែកប្រៀបធៀប Brand (ថ្មី!) ---
 st.subheader("⚔️ Brand Market Share Comparison (Cambodia)")
@@ -102,62 +122,10 @@ else:
 
 st.divider()
 
-# --- ៧. មុខងារ AI Content Generator (បង្ខំប្រើ Version ខ្ពស់បំផុត) ---
-def ai_generate_content(key, keyword, style):
-    genai.configure(api_key=key)
-    
-    # ប្រើ Model ជំនាន់ថ្មីដែលលោកអ្នកបានរកឃើញក្នុង AI Studio
-    model = genai.GenerativeModel('gemini-3-flash-preview')
-    
-    style_desc = "បែបកំប្លែង TikTok" if style == "Funny" else "បែបអាជីព បច្ចេកទេស"
-    
-    # បន្ថែម Context ឱ្យ AI ស្គាល់ថាអ្នកគឺជាម្ចាស់ហាង IT ដើម្បីឱ្យសំណេរកាន់តែទាក់ទាញ
-    prompt = f"""
-    អ្នកគឺជាអ្នកជំនាញ Marketing ឌីជីថលសម្រាប់ហាង NextGen Byte-Tech នៅកម្ពុជា។
-    សូមសរសេរ Script វីដេអូខ្លីសម្រាប់ TikTok/Facebook Reels លើប្រធានបទ: {keyword}។
-    ស្ទីលសំណេរ: {style_desc}។
-    ភាសា: ខ្មែរ (ប្រើពាក្យពេចន៍យុវវ័យ និងបច្ចេកទេសឱ្យសមស្រប)។
-    គោលដៅ: ទាក់ទាញអតិថិជនឱ្យមកប្រើសេវាកម្មដំឡើង និងប្រឹក្សាយោបល់ IT។
-    """
-    
-    try:
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"បញ្ហាបច្ចេកទេស AI: {str(e)}"
-
-# --- ៨. បង្ហាញលទ្ធផល (កែសម្រួលតាម Log Warning) ---
-st.subheader("📈 និន្នាការទីផ្សារ IT នៅកម្ពុជា")
-df_trends = get_trends(selected_keywords, timeframe)
-
-if not df_trends.empty:
-    num_cols = len(selected_keywords)
-    if num_cols > 0:
-        cols = st.columns(num_cols)
-        for i, kw in enumerate(selected_keywords):
-            if kw in df_trends.columns:
-                latest = int(df_trends[kw].iloc[-1])
-                cols[i].metric(label=kw, value=latest)
-    
-    fig = px.line(df_trends.reset_index(), x='date', y=selected_keywords, template="plotly_dark")
-    # កែពី use_container_width=True មកជា width='stretch' តាម Log
-    st.plotly_chart(fig, width='stretch')
-
-st.divider()
-
+# --- ១០. AI Script Generator ---
 st.subheader("🤖 AI Script Generator")
-col_left, col_right = st.columns([1, 2])
-
-with col_left:
-    target_kw = st.selectbox("ជ្រើសរើស Keyword:", selected_keywords)
-    content_style = st.radio("ជ្រើសរើសស្ទីល:", ["Funny", "Professional"])
-    generate_btn = st.button("🚀 បង្កើត Script ឥឡូវនេះ")
-
-with col_right:
-    if generate_btn:
-        if not api_key:
-            st.error("❌ សូមបញ្ចូល API Key!")
-        else:
-            with st.spinner('✨ AI កំពុងរៀបចំ...'):
-                script_out = ai_generate_content(api_key, target_kw, content_style)
-                st.code(script_out, language="markdown")
+target_kw = st.selectbox("រើស Keyword សម្រាប់ផលិត Content:", selected_brands + general_kw)
+if st.button("🚀 បង្កើត Script TikTok"):
+    with st.spinner('✨ កំពុងរៀបចំ...'):
+        script_prompt = f"សរសេរ Script TikTok បែបទាក់ទាញសម្រាប់ហាង NextGen Byte-Tech លើប្រធានបទ {target_kw} ជាភាសាខ្មែរ។"
+        st.code(ai_call(script_prompt), language="markdown")
