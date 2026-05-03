@@ -90,37 +90,61 @@ else:
 st.divider()
 
 # --- ៩. ផ្នែកប្រៀបធៀប Brand (ថ្មី!) ---
-st.subheader("⚔️ Brand Market Share Comparison (Cambodia)")
+st.subheader(f"⚔️ ការប្រៀបធៀបនិន្នាការ Brand ({time_label})")
 brands = ["Hikvision", "Dahua", "Sunell", "Ezviz", "Imou"]
-selected_brands = st.multiselect("ជ្រើសរើស Brand ដើម្បីប្រៀបធៀប:", brands, default=["Hikvision", "Dahua", "Sunell"])
+selected_brands = st.multiselect("ជ្រើសរើស Brand ៖", brands, default=["Hikvision", "Dahua", "Sunell"])
 
-df_brand = get_trends(selected_brands, timeframe)
-
-if not df_brand.empty:
-    # គណនាមធ្យមភាគដើម្បីធ្វើ Pie Chart
-    avg_vals = df_brand[selected_brands].mean().reset_index()
-    avg_vals.columns = ['Brand', 'Search Volume']
+if selected_brands:
+    df_brand = get_trends_safe(selected_brands, timeframe)
     
-    col_chart, col_insight = st.columns([2, 1])
-    
-    with col_chart:
-        fig_pie = px.pie(avg_vals, values='Search Volume', names='Brand', hole=0.4, 
-                         color_discrete_sequence=px.colors.sequential.YlOrRd,
-                         template="plotly_dark")
-        st.plotly_chart(fig_pie, width='stretch')
-    
-    with col_insight:
-        top_brand = avg_vals.loc[avg_vals['Search Volume'].idxmax(), 'Brand']
-        st.success(f"🏆 **{top_brand}** កំពុងមានប្រជាប្រិយភាពបំផុត!")
+    if not df_brand.empty:
+        # ការគណនាមធ្យមភាគ និងកំណើនទីផ្សារ
+        avg_vals = df_brand[selected_brands].mean().reset_index()
+        avg_vals.columns = ['Brand', 'Search Volume']
         
-        if st.button("📋 វិភាគយុទ្ធសាស្ត្រលក់"):
+        # គណនា Market Share (%)
+        total_search = avg_vals['Search Volume'].sum()
+        if total_search > 0:
+            avg_vals['Market Share (%)'] = (avg_vals['Search Volume'] / total_search) * 100
+            avg_vals['Market Share (%)'] = avg_vals['Market Share (%)'].round(2)
+        else:
+            avg_vals['Market Share (%)'] = 0.0
+            
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            # បង្ហាញក្រាហ្វ Pie
+            fig_pie = px.pie(avg_vals, values='Market Share (%)', names='Brand', hole=0.4,
+                             title="ចំណែកទីផ្សារ (Market Share)",
+                             color_discrete_sequence=px.colors.sequential.YlOrRd,
+                             template="plotly_dark")
+            st.plotly_chart(fig_pie, width='stretch')
+            
+        with col2:
+            top_brand = avg_vals.loc[avg_vals['Search Volume'].idxmax(), 'Brand']
+            st.success(f"🏆 **{top_brand}** នាំមុខគេពេលនេះ!")
+            st.dataframe(avg_vals[['Brand', 'Market Share (%)']], hide_index=True)
+            
+        if st.button("📋 វិភាគយុទ្ធសាស្ត្រលក់ (AI Insight)"):
             with st.spinner('🤖 AI កំពុងវិភាគ...'):
-                insight_prompt = f"វិភាគទិន្នន័យ Brand IT នៅខ្មែរ: {avg_vals.to_dict()}។ ផ្ដល់យោបល់ឱ្យហាង NextGen Byte-Tech ថាគួរផ្ដោតលើ Brand ណា និងរៀបចំការលក់យ៉ាងដូចម្ដេច? (ឆ្លើយជាខ្មែរ)"
-                st.info(ai_call(insight_prompt))
+                prompt = f"""
+                ផ្អែកលើទិន្នន័យទីផ្សារកម្ពុជាខាងក្រោម៖
+                {avg_vals.to_dict()}
+                ក្នុងនាមជាអ្នកជំនាញទីផ្សារ NextGen Byte-Tech៖
+                សូមណែនាំថាតើយើងគួរផ្ដោតលើ Brand ណាដើម្បីចំណេញច្រើន ហើយត្រូវរៀបចំយុទ្ធសាស្ត្រលក់យ៉ាងដូចម្ដេច?
+                ឆ្លើយជាភាសាខ្មែរ។
+                """
+                st.info(ai_call(prompt))
+                
+        # ក្រាហ្វ Line សម្រាប់តាមដានពេលវេលា
+        fig_line = px.line(df_brand.reset_index(), x='date', y=selected_brands,
+                         title="ការប្រែប្រួលនៃការស្វែងរកតាមពេលវេលា",
+                         template="plotly_dark")
+        st.plotly_chart(fig_line, width='stretch')
+    else:
+        st.error("🚫 Google Trends កំពុងរឹតត្បិត IP នៃ Server។ សូមរង់ចាំ ២ នាទី រួច Refresh។")
 else:
-    st.info("💡 កំពុងរង់ចាំការជ្រើសរើស Brand ឬការអនុញ្ញាតពី Google...")
-
-st.divider()
+    st.info("💡 សូមជ្រើសរើស Brand យ៉ាងតិចមួយ ដើម្បីចាប់ផ្តើមវិភាគ...")
 
 # --- ១០. AI Script Generator (Updated: Funny, Professional Styles & Save Function) ---
 st.divider()
