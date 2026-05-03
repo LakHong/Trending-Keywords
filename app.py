@@ -41,20 +41,22 @@ if not api_key:
     api_key = st.sidebar.text_input("🔑 Gemini API Key:", type="password")
 
 # --- ៤. មុខងារ Google Trends (បង្កើនស្ថេរភាព) ---
-@st.cache_data(ttl=3600)
-def get_trends(keywords, tf):
+@st.cache_data(ttl=1800)
+def get_trends_safe(keywords, tf):
     if not keywords: return pd.DataFrame()
-    try:
-        # បន្ថែមការកំណត់ដោះស្រាយបញ្ហា Downcasting តាម Log
-        pd.set_option('future.no_silent_downcasting', True)
-        pytrends = TrendReq(hl='en-US', tz=360, timeout=(10,25))
-        pytrends.build_payload(keywords, cat=0, timeframe=tf, geo='KH')
-        df = pytrends.interest_over_time()
-        if not df.empty:
-            return df.drop(labels=['isPartial'], axis='columns', errors='ignore')
-        return pd.DataFrame()
-    except:
-        return pd.DataFrame()
+    pd.set_option('future.no_silent_downcasting', True)
+    for attempt in range(3):
+        try:
+            pytrends = TrendReq(hl='en-US', tz=360, timeout=(15, 30))
+            pytrends.build_payload(keywords, cat=0, timeframe=tf, geo='KH')
+            df = pytrends.interest_over_time()
+            if not df.empty:
+                return df.drop(labels=['isPartial'], axis='columns', errors='ignore')
+            time.sleep(random.uniform(2, 4))
+        except:
+            time.sleep(5)
+            continue
+    return pd.DataFrame()
 
 # --- ៥. មុខងារ AI Analysis ---
 def ai_call(prompt):
