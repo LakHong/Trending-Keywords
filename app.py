@@ -122,18 +122,22 @@ else:
 
 st.divider()
 
-# --- ១០. AI Script Generator (Updated: Funny & Professional Styles) ---
+# --- ១០. AI Script Generator (Updated: Funny, Professional Styles & Save Function) ---
 st.divider()
 st.subheader("🤖 AI Script Generator")
+
+# បង្កើត Session State សម្រាប់ផ្ទុកទិន្នន័យដែលបាន Save
+if 'saved_scripts' not in st.session_state:
+    st.session_state['saved_scripts'] = []
 
 col_input, col_display = st.columns([1, 2])
 
 with col_input:
-    # បញ្ជី Keyword សម្រាប់ជ្រើសរើស (យកចេញពី Brand និង Trend)
+    # បញ្ជី Keyword សម្រាប់ជ្រើសរើស
     all_options = list(set(selected_brands + general_kw))
     target_kw = st.selectbox("រើសប្រធានបទផលិត Content:", all_options)
     
-    # បន្ថែមការជ្រើសរើសស្ទីលសំណេរ
+    # ការជ្រើសរើសស្ទីលសំណេរ
     script_style = st.radio(
         "ជ្រើសរើសស្ទីលសំណេរ:",
         ["បែបកំប្លែង TikTok (Funny)", "បែបអាជីព (Professional)"],
@@ -141,28 +145,64 @@ with col_input:
     )
     
     generate_btn = st.button("🚀 បង្កើត Script ឥឡូវនេះ")
+    
+    # ប៊ូតុង Save Script
+    save_btn = st.button("💾 រក្សាទុក Script នេះ")
 
 with col_display:
+    script_result = ""
+    
     if generate_btn:
         if api_key:
             with st.spinner('✨ AI កំពុងរៀបចំសំណេរ...'):
-                # កំណត់ Prompt ទៅតាមស្ទីលដែលបានជ្រើសរើស
                 style_context = ""
                 if "Funny" in script_style:
                     style_context = "បែបកំប្លែង ឌឺដងតិចៗ ប្រើពាក្យយុវវ័យទាន់សម័យ (Slang) សមស្របសម្រាប់ TikTok Reels"
                 else:
-                    style_context = "បែបអាជីព ផ្ដោតលើបច្ចេកទេស ទំនុកចិត្ត និងអត្ថប្រយោជន៍សម្រាប់អាជីវកម្ម (B2B/Professional)"
+                    style_context = "បែបអាជីព ផ្ដោតលើបច្ចេកទេស ទំនុកចិត្ត និងអត្ថប្រយោជន៍សម្រាប់អាជីវកម្ម"
 
                 prompt = f"""
                 អ្នកគឺជាអ្នកជំនាញមាតិកា (Content Creator) ឱ្យហាង NextGen Byte-Tech នៅកម្ពុជា។
                 សូមសរសេរ Script វីដេអូខ្លីលើប្រធានបទ: {target_kw}។
                 ស្ទីលសំណេរ: {style_context}។
                 ភាសា: ខ្មែរ។
-                រចនាសម្ព័ន្ធ: មាន Hook (ទាក់ទាញដើមវីដេអូ), Body (ខ្លឹមសារ), និង CTA (ជំរុញឱ្យអតិថិជនទាក់ទងមកហាង)។
+                រចនาสម្ព័ន្ធ: មាន Hook (ទាក់ទាញដើមវីដេអូ), Body (ខ្លឹមសារ), និង CTA (ជំរុញឱ្យអតិថិជនទាក់ទងមកហាង).
                 """
                 
                 script_result = ai_call(prompt)
+                st.session_state['current_script'] = script_result # រក្សាទុកក្នុង Session បណ្ដោះអាសន្ន
+                
                 st.markdown(f"### 📝 លទ្ធផល ({script_style})")
                 st.code(script_result, language="markdown")
         else:
             st.warning("⚠️ សូមបញ្ចូល Gemini API Key នៅក្នុង Sidebar ជាមុនសិន!")
+
+    # ដំណើរការមុខងារ Save
+    if save_btn:
+        if 'current_script' in st.session_state and st.session_state['current_script']:
+            new_save = {
+                "topic": target_kw,
+                "style": script_style,
+                "date": datetime.now().strftime('%d-%m-%Y %H:%M'),
+                "content": st.session_state['current_script']
+            }
+            # បន្ថែមចូលក្នុងបញ្ជី
+            st.session_state['saved_scripts'].append(new_save)
+            st.success("✅ បានរក្សាទុក Script ចូលក្នុងបញ្ជីដោយជោគជ័យ!")
+        else:
+            st.warning("⚠️ គ្មាន Script ដែលត្រូវ Save ទេ។ សូមបង្កើត Script មុនពេលចុច Save។")
+
+# --- ១១. បង្ហាញ Script ដែលបាន Save (Saved Scripts List) ---
+if st.session_state['saved_scripts']:
+    st.divider()
+    st.subheader("📂 ស្គ្រីបដែលបានរក្សាទុក (Saved Scripts)")
+    
+    # បង្ហាញជាទម្រង់ Expanders
+    for idx, item in enumerate(st.session_state['saved_scripts']):
+        with st.expander(f"📌 [{item['date']}] {item['topic']} - {item['style']}"):
+            st.code(item['content'], language="markdown")
+            
+            # ប៊ូតុងលុបចេញពីបញ្ជី
+            if st.button("🗑️ លុប", key=f"del_{idx}"):
+                st.session_state['saved_scripts'].pop(idx)
+                st.rerun() # Refresh ទំព័រ
