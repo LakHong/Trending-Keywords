@@ -81,7 +81,7 @@ timeframe = time_map[time_label]
 # --- ៨. ផ្នែកនិន្នាការទូទៅ ---
 st.subheader(f"📈 និន្នាការទីផ្សារ: {time_label}")
 general_kw = ["CCTV", "Wifi Camera", "Smart Home", "Networking"]
-df_gen = get_trends(general_kw, timeframe)
+df_gen = get_trends_safe(general_kw, timeframe)
 
 if not df_gen.empty:
     fig_gen = px.line(df_gen.reset_index(), x='date', y=general_kw, template="plotly_dark")
