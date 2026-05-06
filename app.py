@@ -45,6 +45,12 @@ if not api_key:
 def get_trends_safe(keywords, tf):
     if not keywords: return pd.DataFrame()
     pd.set_option('future.no_silent_downcasting', True)
+
+    # បន្ថែមបញ្ជី User-Agent ដើម្បីចៀសវាងការ Block IP ពី Google
+    user_agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Safari/605.1.15"
+        
     for attempt in range(3):
         try:
             pytrends = TrendReq(hl='en-US', tz=360, timeout=(15, 30))
