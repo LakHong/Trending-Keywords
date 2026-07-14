@@ -40,27 +40,28 @@ api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
     api_key = st.sidebar.text_input("🔑 Gemini API Key:", type="password")
 
-# --- ៤. មុខងារ Google Trends (បង្កើនស្ថេរភាព) ---
+# --- ៤. មុខងារទាញទិន្នន័យ (ជំនាន់ការពារការ Block IP ជាមួយ proxies) ---
 @st.cache_data(ttl=1800)
 def get_trends_safe(keywords, tf):
     if not keywords: return pd.DataFrame()
     pd.set_option('future.no_silent_downcasting', True)
-
-    # បន្ថែមបញ្ជី User-Agent ដើម្បីចៀសវាងការ Block IP ពី Google
-    user_agents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Safari/605.1.15"]
-        
+    
+    # ប្រសិនបើបងមាន Proxy ផ្ទាល់ខ្លួន (ឧទាហរណ៍៖ Webshare, Oxylabs, ឬ Free Proxy)
+    # បងអាចដាក់បញ្ចូលក្នុងទម្រង់នេះ៖
+    # proxy_list = ["http://user:pass@ip:port", "http://ip:port"]
+    
     for attempt in range(3):
         try:
+            # បង្កើត TrendReq ដោយមិនកំណត់ proxies ជាមុន (សាកល្បងធម្មតា)
             pytrends = TrendReq(hl='en-US', tz=360, timeout=(15, 30))
             pytrends.build_payload(keywords, cat=0, timeframe=tf, geo='KH')
             df = pytrends.interest_over_time()
             if not df.empty:
                 return df.drop(labels=['isPartial'], axis='columns', errors='ignore')
-            time.sleep(random.uniform(2, 4))
-        except:
-            time.sleep(5)
+            time.sleep(random.uniform(3, 6))
+        except Exception as e:
+            # ប្រសិនបើជួបកំហុស (Google Block) វានឹងរង់ចាំ រួចព្យាយាមម្តងទៀត
+            time.sleep(random.uniform(5, 10))
             continue
     return pd.DataFrame()
 
