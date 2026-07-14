@@ -5,6 +5,7 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 import time
+import random
 
 # --- ១. ការកំណត់ទំព័រ និង Branding ---
 st.set_page_config(
