@@ -80,8 +80,11 @@ time_map = {"៧ ថ្ងៃចុងក្រោយ": "now 7-d", "១ ខែ�
 time_label = st.sidebar.selectbox("រយៈពេលវិភាគ:", list(time_map.keys()))
 timeframe = time_map[time_label]
 
+# បន្ថែមការជ្រើសរើសប្រភេទផលិតផលក្នុង Sidebar ដើម្បីឱ្យបងងាយស្រួលគ្រប់គ្រង
+category = st.sidebar.radio("📁 ជ្រើសរើសវិស័យចង់វិភាគ:", ["កាមេរ៉ាសុវត្ថិភាព (CCTV)", "ប្រព័ន្ធបណ្តាញ (Networking)"])
+
 # --- ៨. ផ្នែកនិន្នាការទូទៅ ---
-st.subheader(f"📈 និន្នាការទីផ្សារ: {time_label}")
+st.subheader(f"📈 និន្នាការទីផ្សារទូទៅ: {time_label}")
 general_kw = ["CCTV", "Wifi Camera", "Smart Home", "Networking"]
 df_gen = get_trends_safe(general_kw, timeframe)
 
@@ -95,29 +98,42 @@ st.divider()
 
 # --- ៩. ផ្នែកប្រៀបធៀប Brand (Omni-Channel: Google + Facebook + TikTok) ---
 st.subheader(f"⚔️ វិភាគប្រៀបធៀប Brand លើគ្រប់បណ្តាញសង្គម ({time_label})")
-brands = ["Hikvision", "Dahua", "Sunell", "Ezviz", "Imou"]
-selected_brands = st.multiselect("ជ្រើសរើស Brand ៖", brands, default=["Hikvision", "Dahua", "Sunell"])
+
+# កំណត់បញ្ជី Brand ទៅតាមវិស័យដែលបានជ្រើសរើស
+if category == "កាមេរ៉ាសុវត្ថិភាព (CCTV)":
+    brands = ["Hikvision", "Dahua", "Sunell", "Ezviz", "Imou"]
+    default_select = ["Hikvision", "Dahua", "Sunell"]
+    
+    # Weight values សម្រាប់ CCTV
+    fb_weights = {"Hikvision": 1.3, "Dahua": 1.2, "Sunell": 0.9, "Ezviz": 1.5, "Imou": 1.4}
+    tt_weights = {"Hikvision": 0.6, "Dahua": 0.5, "Sunell": 0.3, "Ezviz": 1.7, "Imou": 1.6}
+else:
+    # បន្ថែម Brand ឧបករណ៍បណ្តាញ (Network & Firewall)
+    brands = ["MikroTik", "UniFi", "Fortigate", "Ruijie", "Cisco"]
+    default_select = ["MikroTik", "UniFi", "Fortigate"]
+    
+    # Weight values សម្រាប់ Network (ឧបករណ៍ Network ភាគច្រើនចរាចរណ៍លើ B2B ដូច្នេះ FB/Google ខ្ពស់ តែ TikTok ទាប)
+    fb_weights = {"MikroTik": 1.4, "UniFi": 1.3, "Fortigate": 1.5, "Ruijie": 1.2, "Cisco": 1.1}
+    tt_weights = {"MikroTik": 0.3, "UniFi": 0.5, "Fortigate": 0.2, "Ruijie": 0.6, "Cisco": 0.3}
+
+selected_brands = st.multiselect(f"ជ្រើសរើស Brand {category} ៖", brands, default=default_select)
 
 if selected_brands:
     df_brand = get_trends_safe(selected_brands, timeframe)
     
     if not df_brand.empty:
-        # គណនា Google Vol គោលជាមុនសិន
+        # គណនា Google Vol គោល
         avg_vals = df_brand[selected_brands].mean().reset_index()
         avg_vals.columns = ['Brand', 'Google Vol']
         
-        # ដាក់បញ្ចូលក្បួនគណនា (Algorithm Weighted Index) សម្រាប់ទីផ្សារកម្ពុជាឆ្នាំ ២០២៦
-        # FB ខ្លាំងលើគម្រោង និងការសួរទិញផ្ទាល់, TikTok ខ្លាំងលើ Smart Home/Wifi Cam និងវីដេអូខ្លី
-        fb_weights = {"Hikvision": 1.3, "Dahua": 1.2, "Sunell": 0.9, "Ezviz": 1.5, "Imou": 1.4}
-        tt_weights = {"Hikvision": 0.6, "Dahua": 0.5, "Sunell": 0.3, "Ezviz": 1.7, "Imou": 1.6}
-        
+        # គណនា Facebook និង TikTok Vol ដោយប្រើ Weight ទៅតាមប្រភេទ Brand នីមួយៗ
         avg_vals['Facebook Vol'] = (avg_vals['Brand'].map(fb_weights) * avg_vals['Google Vol']).round(2)
         avg_vals['TikTok Vol'] = (avg_vals['Brand'].map(tt_weights) * avg_vals['Google Vol']).round(2)
         
         # គណនាពិន្ទុរួម Omni-Channel Score
         avg_vals['Omni-Score'] = (avg_vals['Google Vol'] + avg_vals['Facebook Vol'] + avg_vals['TikTok Vol']).round(2)
         
-        # គណនា Market Share (%) ពី Omni-Score រួម
+        # គណនា Market Share (%)
         total_omni = avg_vals['Omni-Score'].sum()
         if total_omni > 0:
             avg_vals['Market Share (%)'] = ((avg_vals['Omni-Score'] / total_omni) * 100).round(2)
@@ -137,7 +153,7 @@ if selected_brands:
             )
             fig_multi = px.bar(
                 df_melted, x='Brand', y='Search Index', color='Platform', barmode='group',
-                title="ប្រៀបធៀបប្រជាប្រិយភាពតាម Platform (Google, FB, TikTok)",
+                title=f"ប្រៀបធៀបប្រជាប្រិយភាព Brand {category} តាម Platform",
                 color_discrete_sequence=['#FFD700', '#1877F2', '#FE2C55'], # Gold, Blue, Pink
                 template="plotly_dark"
             )
@@ -151,10 +167,10 @@ if selected_brands:
         if st.button("📋 វិភាគយុទ្ធសាស្ត្រលក់ (Omni-Channel AI Insight)"):
             with st.spinner('🤖 AI កំពុងវិភាគគ្រប់បណ្តាញសង្គម...'):
                 prompt = f"""
-                ផ្អែកលើទិន្នន័យទីផ្សារកម្ពុជា រួមមាន Google, Facebook និង TikTok ខាងក្រោម៖
+                ផ្អែកលើទិន្នន័យស្វែងរកឧបករណ៍ {category} នៅកម្ពុជា រួមមាន Google, Facebook និង TikTok ខាងក្រោម៖
                 {avg_vals.to_dict()}
-                ក្នុងនាមជាអ្នកជំនាញទីផ្សារ NextGen Byte-Tech៖
-                សូមណែនាំយុទ្ធសាស្ត្រលក់ និងការបែងចែកកញ្ចប់ Ad Budget លើ Google, FB, និង TikTok សម្រាប់ Brand នីមួយៗឱ្យបានចំគោលដៅ។
+                ក្នុងនាមជាអ្នកជំនាញ IT Solution និងសន្តិសុខបច្ចេកវិទ្យានៃហាង NextGen Byte-Tech៖
+                សូមណែនាំយុទ្ធសាស្ត្រលក់ របៀបរកម៉ូយ និងការផ្សព្វផ្សាយផលិតផល {category} ទាំងនេះឱ្យចំគោលដៅអតិថិជនខ្មែរ។
                 ឆ្លើយជាភាសាខ្មែរ។
                 """
                 st.info(ai_call(prompt))
@@ -169,22 +185,19 @@ if selected_brands:
 else:
     st.info("💡 សូមជ្រើសរើស Brand យ៉ាងតិចមួយ ដើម្បីចាប់ផ្តើមវិភាគ...")
 
-# --- ១០. AI Script Generator (Updated: Funny, Professional Styles & Save Function) ---
+# --- ១០. AI Content Creator (Facebook & TikTok) ---
 st.divider()
-st.subheader("🤖 AI Script & Content Generator")
+st.subheader("🤖 AI Content Creator (Facebook & TikTok)")
 
-# បង្កើត Session State សម្រាប់ផ្ទុកទិន្នន័យដែលបាន Save
 if 'saved_scripts' not in st.session_state:
     st.session_state['saved_scripts'] = []
 
 col_input, col_display = st.columns([1, 2])
 
 with col_input:
-    # បញ្ជី Keyword សម្រាប់ជ្រើសរើស
     all_options = list(set(selected_brands + general_kw))
     target_kw = st.selectbox("រើសប្រធានបទផលិត Content:", all_options)
     
-    # ជ្រើសរើស Platform និងស្ទីលសំណេរ
     target_platform = st.selectbox("រើសប្រព័ន្ធផ្សព្វផ្សាយ:", ["Facebook Post", "TikTok Video Script"])
     script_style = st.radio(
         "ជ្រើសរើសស្ទីលសំណេរ:",
@@ -203,7 +216,7 @@ with col_display:
                 if "Funny" in script_style:
                     style_context = "បែបកំប្លែង ឌឺដងជាមួយជាងដំឡើងចាស់ៗ ប្រើពាក្យយុវវ័យទាន់សម័យ (Slang) សមស្របសម្រាប់ TikTok Reels"
                 else:
-                    style_context = "បែបអាជីព ផ្ដោតលើប្រព័ន្ធសុវត្ថិភាពខ្ពស់ ភាពធន់ ទំនុកចិត្ត និងអត្ថប្រយោជន៍បច្ចេកវិទ្យាសម្រាប់អាជីវកម្ម"
+                    style_context = "បែបអាជីព ផ្ដោតលើប្រព័ន្ធសុវត្ថិភាពខ្ពស់ ស្ថិរភាពបណ្តាញ ភាពធន់ និងអត្ថប្រយោជន៍បច្ចេកវិទ្យាសម្រាប់អាជីវកម្ម"
 
                 prompt = f"""
                 អ្នកគឺជាអ្នកជំនាញមាតិកា (Content Creator) ឱ្យហាង NextGen Byte-Tech នៅកម្ពុជា។
@@ -216,14 +229,13 @@ with col_display:
                 """
                 
                 script_result = ai_call(prompt)
-                st.session_state['current_script'] = script_result # រក្សាទុកបណ្ដោះអាសន្ន
+                st.session_state['current_script'] = script_result 
                 
                 st.markdown(f"### 📝 លទ្ធផល ({script_style})")
                 st.code(script_result, language="markdown")
         else:
             st.warning("⚠️ សូមបញ្ចូល Gemini API Key នៅក្នុង Sidebar ជាមុនសិន!")
 
-    # ដំណើរការមុខងារ Save
     if save_btn:
         if 'current_script' in st.session_state and st.session_state['current_script']:
             new_save = {
@@ -238,7 +250,7 @@ with col_display:
         else:
             st.warning("⚠️ គ្មានកូដ Content ដែលត្រូវ Save ទេ។ សូមចុចបង្កើត (Generate) ជាមុនសិន។")
 
-# --- ១១. បង្ហាញ Script ដែលបាន Save (Saved Scripts List) ---
+# --- ១១. Saved Scripts List ---
 if st.session_state['saved_scripts']:
     st.divider()
     st.subheader("📂 ស្គ្រីបដែលបានរក្សាទុក (Saved Scripts)")
