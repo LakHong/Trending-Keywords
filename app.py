@@ -41,7 +41,7 @@ api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
     api_key = st.sidebar.text_input("🔑 Gemini API Key:", type="password")
 
-# --- ៤. មុខងារទាញទិន្នន័យ (ជំនាន់ការពារការ Block IP ជាមួយ proxies) ---
+# --- ៤. មុខងារទាញទិន្នន័យពី Google Trends ---
 @st.cache_data(ttl=1800)
 def get_trends_safe(keywords, tf):
     if not keywords: return pd.DataFrame()
@@ -80,12 +80,15 @@ time_map = {"៧ ថ្ងៃចុងក្រោយ": "now 7-d", "១ ខែ�
 time_label = st.sidebar.selectbox("រយៈពេលវិភាគ:", list(time_map.keys()))
 timeframe = time_map[time_label]
 
-# បន្ថែមការជ្រើសរើសប្រភេទផលិតផលក្នុង Sidebar ដើម្បីឱ្យបងងាយស្រួលគ្រប់គ្រង
-category = st.sidebar.radio("📁 ជ្រើសរើសវិស័យចង់វិភាគ:", ["កាមេរ៉ាសុវត្ថិភាព (CCTV)", "ប្រព័ន្ធបណ្តាញ (Networking)"])
+# បន្ថែមជម្រើស Cloud VPS & Landing Page ទៅក្នុង Sidebar Radio
+category = st.sidebar.radio(
+    "📁 ជ្រើសរើសវិស័យចង់វិភាគ:", 
+    ["កាមេរ៉ាសុវត្ថិភាព (CCTV)", "ប្រព័ន្ធបណ្តាញ (Networking)", "សេវាកម្ម Cloud & Web (SaaS)"]
+)
 
 # --- ៨. ផ្នែកនិន្នាការទូទៅ ---
 st.subheader(f"📈 និន្នាការទីផ្សារទូទៅ: {time_label}")
-general_kw = ["CCTV", "Wifi Camera", "Smart Home", "Networking"]
+general_kw = ["CCTV", "Smart Home", "Networking", "Cloud VPS", "Landing Page"]
 df_gen = get_trends_safe(general_kw, timeframe)
 
 if not df_gen.empty:
@@ -96,44 +99,54 @@ else:
 
 st.divider()
 
-# --- ៩. ផ្នែកប្រៀបធៀប Brand (Omni-Channel: Google + Facebook + TikTok) ---
-st.subheader(f"⚔️ វិភាគប្រៀបធៀប Brand លើគ្រប់បណ្តាញសង្គម ({time_label})")
+# --- ៩. ផ្នែកប្រៀបធៀប Brand/Service (Omni-Channel) ---
+st.subheader(f"⚔️ វិភាគប្រៀបធៀបតម្រូវការលើគ្រប់បណ្តាញសង្គម ({time_label})")
 
-# កំណត់បញ្ជី Brand ទៅតាមវិស័យដែលបានជ្រើសរើស
+# កំណត់បញ្ជី Keyword/Brand ទៅតាមវិស័យនីមួយៗ
 if category == "កាមេរ៉ាសុវត្ថិភាព (CCTV)":
     brands = ["Hikvision", "Dahua", "Sunell", "Ezviz", "Imou"]
     default_select = ["Hikvision", "Dahua", "Sunell"]
-    
-    # Weight values សម្រាប់ CCTV
     fb_weights = {"Hikvision": 1.3, "Dahua": 1.2, "Sunell": 0.9, "Ezviz": 1.5, "Imou": 1.4}
     tt_weights = {"Hikvision": 0.6, "Dahua": 0.5, "Sunell": 0.3, "Ezviz": 1.7, "Imou": 1.6}
-else:
-    # បន្ថែម Brand ឧបករណ៍បណ្តាញ (Network & Firewall)
+
+elif category == "ប្រព័ន្ធបណ្តាញ (Networking)":
     brands = ["MikroTik", "UniFi", "Fortigate", "Ruijie", "Cisco"]
     default_select = ["MikroTik", "UniFi", "Fortigate"]
-    
-    # Weight values សម្រាប់ Network (ឧបករណ៍ Network ភាគច្រើនចរាចរណ៍លើ B2B ដូច្នេះ FB/Google ខ្ពស់ តែ TikTok ទាប)
     fb_weights = {"MikroTik": 1.4, "UniFi": 1.3, "Fortigate": 1.5, "Ruijie": 1.2, "Cisco": 1.1}
     tt_weights = {"MikroTik": 0.3, "UniFi": 0.5, "Fortigate": 0.2, "Ruijie": 0.6, "Cisco": 0.3}
 
-selected_brands = st.multiselect(f"ជ្រើសរើស Brand {category} ៖", brands, default=default_select)
+else:  # សេវាកម្ម Cloud & Web (SaaS)
+    brands = ["Cloud VPS", "Landing Page", "Web Hosting", "Website Design", "Domain Name"]
+    default_select = ["Cloud VPS", "Landing Page", "Website Design"]
+    # ទីផ្សារសេវាកម្ម Web គឺដើរខ្លាំងលើ FB និង Google រីឯ Landing Page គឺពេញនិយមផ្សព្វផ្សាយខ្លាំងលើ TikTok
+    fb_weights = {
+        "Cloud VPS": 1.4, 
+        "Landing Page": 1.5, 
+        "Web Hosting": 1.2, 
+        "Website Design": 1.4, 
+        "Domain Name": 1.1
+    }
+    tt_weights = {
+        "Cloud VPS": 0.1,      # ស្ទើរតែគ្មានអ្នកលេង TikTok រកទិញ VPS ឡើយ
+        "Landing Page": 0.9,   # ពេញនិយមខ្លាំងសម្រាប់ Business Coach ណែនាំលើ TikTok
+        "Web Hosting": 0.2, 
+        "Website Design": 0.7,  # មានការបង្ហាញ Template ស្អាតៗលើ TikTok
+        "Domain Name": 0.3
+    }
+
+selected_brands = st.multiselect(f"ជ្រើសរើស សេវាកម្ម/ពាក្យគន្លឹះ ដើម្បីប្រៀបធៀប ៖", brands, default=default_select)
 
 if selected_brands:
     df_brand = get_trends_safe(selected_brands, timeframe)
     
     if not df_brand.empty:
-        # គណនា Google Vol គោល
         avg_vals = df_brand[selected_brands].mean().reset_index()
         avg_vals.columns = ['Brand', 'Google Vol']
         
-        # គណនា Facebook និង TikTok Vol ដោយប្រើ Weight ទៅតាមប្រភេទ Brand នីមួយៗ
         avg_vals['Facebook Vol'] = (avg_vals['Brand'].map(fb_weights) * avg_vals['Google Vol']).round(2)
         avg_vals['TikTok Vol'] = (avg_vals['Brand'].map(tt_weights) * avg_vals['Google Vol']).round(2)
-        
-        # គណនាពិន្ទុរួម Omni-Channel Score
         avg_vals['Omni-Score'] = (avg_vals['Google Vol'] + avg_vals['Facebook Vol'] + avg_vals['TikTok Vol']).round(2)
         
-        # គណនា Market Share (%)
         total_omni = avg_vals['Omni-Score'].sum()
         if total_omni > 0:
             avg_vals['Market Share (%)'] = ((avg_vals['Omni-Score'] / total_omni) * 100).round(2)
@@ -143,7 +156,6 @@ if selected_brands:
         col1, col2 = st.columns([2, 1])
         
         with col1:
-            # ក្រាហ្វរបារប្រៀបធៀប Platform នីមួយៗ
             df_melted = pd.melt(
                 avg_vals, 
                 id_vars=['Brand'], 
@@ -153,29 +165,30 @@ if selected_brands:
             )
             fig_multi = px.bar(
                 df_melted, x='Brand', y='Search Index', color='Platform', barmode='group',
-                title=f"ប្រៀបធៀបប្រជាប្រិយភាព Brand {category} តាម Platform",
-                color_discrete_sequence=['#FFD700', '#1877F2', '#FE2C55'], # Gold, Blue, Pink
+                title=f"ប្រៀបធៀបប្រជាប្រិយភាពសេវាកម្ម តាម Platform",
+                color_discrete_sequence=['#FFD700', '#1877F2', '#FE2C55'], 
                 template="plotly_dark"
             )
             st.plotly_chart(fig_multi, width='stretch')
             
         with col2:
             top_brand = avg_vals.loc[avg_vals['Omni-Score'].idxmax(), 'Brand']
-            st.success(f"🏆 **{top_brand}** នាំមុខគេលើប្រព័ន្ធផ្សព្វផ្សាយរួម!")
+            st.success(f"🏆 **{top_brand}** មានតម្រូវការរួមខ្ពស់ជាងគេក្នុងពេលនេះ!")
             st.dataframe(avg_vals[['Brand', 'Omni-Score', 'Market Share (%)']], hide_index=True)
             
         if st.button("📋 វិភាគយុទ្ធសាស្ត្រលក់ (Omni-Channel AI Insight)"):
-            with st.spinner('🤖 AI កំពុងវិភាគគ្រប់បណ្តាញសង្គម...'):
+            with st.spinner('🤖 AI កំពុងវិភាគតម្រូវការ Cloud VPS និង Landing Page...'):
                 prompt = f"""
-                ផ្អែកលើទិន្នន័យស្វែងរកឧបករណ៍ {category} នៅកម្ពុជា រួមមាន Google, Facebook និង TikTok ខាងក្រោម៖
+                ផ្អែកលើទិន្នន័យស្វែងរកសេវាកម្ម Cloud / Web ខាងក្រោម៖
                 {avg_vals.to_dict()}
-                ក្នុងនាមជាអ្នកជំនាញ IT Solution និងសន្តិសុខបច្ចេកវិទ្យានៃហាង NextGen Byte-Tech៖
-                សូមណែនាំយុទ្ធសាស្ត្រលក់ របៀបរកម៉ូយ និងការផ្សព្វផ្សាយផលិតផល {category} ទាំងនេះឱ្យចំគោលដៅអតិថិជនខ្មែរ។
-                ឆ្លើយជាភាសាខ្មែរ។
+                ក្នុងនាមជាម្ចាស់អាជីវកម្ម NextGen Byte-Tech ដែលចង់លក់សេវាកម្ម Cloud VPS និង Landing Page បន្ថែម៖
+                ១. តើទិន្នន័យខាងលើបង្ហាញពីឱកាសអ្វីខ្លះក្នុងការចាប់ម៉ូយនៅខ្មែរ?
+                ២. គួររៀបចំកញ្ចប់សេវាកម្ម (Package Solution) យ៉ាងដូចម្តេចដើម្បីទាក់ទាញចិត្តអ្នកលក់អនឡាញ និងក្រុមហ៊ុន SME?
+                ៣. ផ្តល់យុទ្ធសាស្ត្រលក់ និង Marketing ឱ្យចំ Target Group នីមួយៗ។
+                ឆ្លើយជាភាសាខ្មែរ បែបអាជីព និងអនុវត្តបានភ្លាមៗ។
                 """
                 st.info(ai_call(prompt))
                 
-        # ក្រាហ្វ Line តាមដានពេលវេលា (ទិន្នន័យ Google Trends)
         fig_line = px.line(df_brand.reset_index(), x='date', y=selected_brands,
                          title="ការប្រែប្រួលនៃការស្វែងរកតាមពេលវេលា (Google Trends)",
                          template="plotly_dark")
@@ -183,7 +196,7 @@ if selected_brands:
     else:
         st.error("🚫 Google Trends កំពុងរឹតត្បិត IP នៃ Server។ សូមរង់ចាំ ២ នាទី រួច Refresh។")
 else:
-    st.info("💡 សូមជ្រើសរើស Brand យ៉ាងតិចមួយ ដើម្បីចាប់ផ្តើមវិភាគ...")
+    st.info("💡 សូមជ្រើសរើស សេវាកម្ម/ពាក្យគន្លឹះ យ៉ាងតិចមួយ ដើម្បីចាប់ផ្តើមវិភាគ...")
 
 # --- ១០. AI Content Creator (Facebook & TikTok) ---
 st.divider()
@@ -214,9 +227,9 @@ with col_display:
             with st.spinner('✨ AI កំពុងរៀបចំសំណេរ...'):
                 style_context = ""
                 if "Funny" in script_style:
-                    style_context = "បែបកំប្លែង ឌឺដងជាមួយជាងដំឡើងចាស់ៗ ប្រើពាក្យយុវវ័យទាន់សម័យ (Slang) សមស្របសម្រាប់ TikTok Reels"
+                    style_context = "បែបកំប្លែង ឌឺដងជាមួយការប្រើប្រាស់ Hosting ថោកៗឧស្សាហ៍គាំង ឬការធុញទ្រាន់នឹងការលក់អនឡាញគ្មាន Website/Landing Page ច្បាស់លាស់ ប្រើពាក្យយុវវ័យទាន់សម័យ (Slang)"
                 else:
-                    style_context = "បែបអាជីព ផ្ដោតលើប្រព័ន្ធសុវត្ថិភាពខ្ពស់ ស្ថិរភាពបណ្តាញ ភាពធន់ និងអត្ថប្រយោជន៍បច្ចេកវិទ្យាសម្រាប់អាជីវកម្ម"
+                    style_context = "បែបអាជីព ផ្ដោតលើល្បឿនលឿន (High Performance Cloud VPS), សុវត្ថិភាពទិន្នន័យ (Data Security), ភាពងាយស្រួលនៃការបិទការលក់ (High Conversion Landing Page) សម្រាប់អាជីវកម្មខ្នាតតូចនិងមធ្យម"
 
                 prompt = f"""
                 អ្នកគឺជាអ្នកជំនាញមាតិកា (Content Creator) ឱ្យហាង NextGen Byte-Tech នៅកម្ពុជា។
@@ -224,7 +237,7 @@ with col_display:
                 ស្ទីលសំណេរ: {style_context}។
                 ភាសា: ខ្មែរ។
                 រចនាសម្ព័ន្ធ៖
-                - បើជា Facebook Post៖ សរសេរ Caption ទាក់ទាញ, បញ្ជាក់លក្ខណៈបច្ចេកទេសច្បាស់លាស់ និង Call to Action ទំនាក់ទំនងហាង NextGen Byte-Tech។
+                - បើជា Facebook Post៖ សរសេរ Caption ទាក់ទាញ, បញ្ជាក់អត្ថប្រយោជន៍ និង Call to Action ទំនាក់ទំនងមក NextGen Byte-Tech ដើម្បីទទួលបានការពិគ្រោះយោបល់ឥតគិតថ្លៃ។
                 - បើជា TikTok Script៖ សរសេរឱ្យមាន Scene ប្លង់ថត, សម្តីនិយាយ (Voiceover) និង SFX កំប្លែងៗ ឬរំភើប បញ្ចូល CTA ទាក់ទាញនៅចុងបញ្ចប់។
                 """
                 
